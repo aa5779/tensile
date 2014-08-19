@@ -21,3 +21,16 @@
 *.i*86
 *.x86_64
 *.hex
+
+*~
+*.bak
+
+build/*
+doc/*
+
+
+TAGS
+core
+core.*
+vgcore.*
+*.gcov
