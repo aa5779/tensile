@@ -43,27 +43,24 @@ extern "C"
 #include <inttypes.h>
 #include <assert.h>
 
-#ifdef NDEBUG
-#error "Must not compile with disabled assertions"
-#endif
 
 /**
  * Indicates that the function returns
  * a pointer to unaliased uninitalized memory
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
-#define hint_returns_fresh_pointer __attribute__((__malloc__))
+#define unaliased  __attribute__((__malloc__))
 #else
-#define hint_returns_fresh_pointer
+#define unaliased
 #endif
 
 /**
  * Indicates that a function returns a non-NULL pointer
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define hint_returns_not_null __attribute__((__returns_nonnull__))
+#define not_null __attribute__((__returns_nonnull__))
 #else
-#define hint_returns_not_null
+#define not_null
 #endif
 
 /**
@@ -71,9 +68,9 @@ extern "C"
  * of the function is thrown away
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
-#define warn_unused_result     __attribute__((__warn_unused_result__))
+#define must_use  __attribute__((__warn_unused_result__))
 #else
-#define warn_unused_result
+#define must_use
 #endif
 
 /**
@@ -81,9 +78,9 @@ extern "C"
  * at the end of varargs
  */
 #if __GNUC__ >= 4
-#define warn_last_vararg_not_null  __attribute__((__sentinel__))
+#define last_arg_null  __attribute__((__sentinel__))
 #else
-#define warn_last_vararg_not_null
+#define last_arg_null
 #endif
 
 /**
@@ -91,11 +88,13 @@ extern "C"
  * ever be passed NULL
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)
-#define warn_any_null_arg  __attribute__ ((__nonnull__))
+#define no_null_args  __attribute__ ((__nonnull__))
 #else
-#define warn_any_null_arg
+#define no_null_args
 #endif
 
+
+#define like(_func, ...) HINT_LIKE_##_func(__VA_ARGS__)
 
 /**
  * Indicates that a function returns
@@ -106,15 +105,15 @@ extern "C"
  * the y'th argument
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
-#define hint_malloc_like(_arg)                  \
-    hint_returns_fresh_pointer                  \
+#define HINT_LIKE_malloc(_arg)                   \
+    unaliased                                    \
     __attribute__((__alloc_size__(_arg)))
-#define hint_calloc_like(_arg1, _arg2)              \
-    hint_returns_fresh_pointer                      \
+#define HINT_LIKE_calloc(_arg1, _arg2)               \
+    unaliased                                        \
     __attribute__((__alloc_size__(_arg1, _arg2)))
 #else
-#define hint_malloc_like(_arg) hint_returns_fresh_pointer
-#define hint_calloc_like(_arg1, _arg2) hint_returns_fresh_pointer
+#define HINT_LIKE_malloc(_arg) unaliased
+#define HINT_LIKE_calloc(_arg1, _arg2) unaliased
 #endif
 
 /**
@@ -122,11 +121,11 @@ extern "C"
  * a pointer to memory, the alignment of which is given in its _x'th argument.
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define hint_memalign_like(_arg1, _arg2)                  \
+#define HINT_LIKE_memalign(_arg1, _arg2)                  \
     __attribute__((__alloc_align__(_arg1)))               \
-    hint_malloc_like(_arg2)
+    like(malloc, _arg2)
 #else
-#define hint_memalign_like(_arg1, _arg2) hint_malloc_like(_arg2)
+#define HINT_LIKE_memalign(_arg1, _arg2) like(malloc, _arg2)
 #endif
 
 /**
@@ -135,10 +134,10 @@ extern "C"
  * the arguments start at _y
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define hint_printf_like(_x, _y)                        \
+#define HINT_LIKE_printf(_x, _y)                        \
     __attribute__((__format__ (__printf__, _x, _y)))
 #else
-#define hint_printf_like(_x, _y)
+#define HINT_LIKE_printf(_x, _y)
 #endif
 
 /**
@@ -147,10 +146,10 @@ extern "C"
  * the arguments start at _y
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define hint_scanf_like(_x, _y)                     \
+#define HINT_LIKE_scanf(_x, _y)                     \
     __attribute__((__format__ (__scanf__, _x, _y)))
 #else
-#define hint_scanf_like(_x, _y)
+#define HINT_LIKE_scanf(_x, _y)
 #endif
 
 /**
@@ -159,10 +158,10 @@ extern "C"
  * the arguments start at _y
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define hint_strftime_like(_x)                          \
+#define HINT_LIKE_strftime(_x)                          \
     __attribute__((__format__ (__strftime__, _x, 0)))
 #else
-#define hint_strftime_like(_x)
+#define HINT_LIKE_strftime(_x)
 #endif
 
 /**
@@ -171,10 +170,10 @@ extern "C"
  * and returned by the function
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define hint_arg_format_string(_x)  \
+#define format_string(_x)                       \
     __attribute__((__format_arg__ (_x)))
 #else
-#define hint_arg_format_string(_x)
+#define format_string(_x)
 #endif
 
 
@@ -183,10 +182,10 @@ extern "C"
  * `_args` are never `NULL`
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)
-#define warn_null_args(...)                     \
+#define not_null_args(...)                     \
     __attribute__ ((__nonnull__ (__VA_ARGS__)))
 #else
-#define warn_null_args(...)
+#define not_null_args(...)
 #endif
 
 
@@ -195,9 +194,9 @@ extern "C"
  * that means a function cannot produce any observable side effects
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
-#define hint_no_side_effects __attribute__((__pure__))
+#define no_side_effects __attribute__((__pure__))
 #else
-#define hint_no_side_effects
+#define no_side_effects
 #endif
 
 /**
@@ -206,9 +205,9 @@ extern "C"
  * arguments
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define hint_no_shared_state  __attribute__((__const__))
+#define no_shared_state  __attribute__((__const__))
 #else
-#define hint_no_shared_state
+#define no_shared_state
 #endif
 
 
