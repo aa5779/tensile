@@ -49,18 +49,18 @@ extern "C"
  * a pointer to unaliased uninitalized memory
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
-#define unaliased  __attribute__((__malloc__))
+#define UNALIASED  __attribute__((__malloc__))
 #else
-#define unaliased
+#define UNALIASED
 #endif
 
 /**
  * Indicates that a function returns a non-NULL pointer
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define not_null __attribute__((__returns_nonnull__))
+#define NOT_NULL __attribute__((__returns_nonnull__))
 #else
-#define not_null
+#define NOT_NULL
 #endif
 
 /**
@@ -68,9 +68,9 @@ extern "C"
  * of the function is thrown away
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
-#define must_use  __attribute__((__warn_unused_result__))
+#define MUST_USE  __attribute__((__warn_unused_result__))
 #else
-#define must_use
+#define MUST_USE
 #endif
 
 /**
@@ -78,9 +78,9 @@ extern "C"
  * at the end of varargs
  */
 #if __GNUC__ >= 4
-#define last_arg_null  __attribute__((__sentinel__))
+#define LAST_ARG_NULL  __attribute__((__sentinel__))
 #else
-#define last_arg_null
+#define LAST_ARG_NULL
 #endif
 
 /**
@@ -88,32 +88,29 @@ extern "C"
  * ever be passed NULL
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)
-#define no_null_args  __attribute__ ((__nonnull__))
+#define NO_NULL_ARGS  __attribute__ ((__nonnull__))
 #else
-#define no_null_args
+#define NO_NULL_ARGS
 #endif
-
-
-#define like(_func, ...) HINT_LIKE_##_func(__VA_ARGS__)
 
 /**
  * Indicates that a function returns
- * a pointer to memory, the size of which is given in its _x'th argument.
+ * a pointer to memory, the size of which is given in its @arg _arg'th argument.
  * Indicates that a function returns
  * a pointer to memory, which consists of a number of elements
  * given in its x'th argument, where each element has the size given in
  * the y'th argument
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
-#define HINT_LIKE_malloc(_arg)                   \
-    unaliased                                    \
+#define LIKE_MALLOC(_arg)                   \
+    UNALIASED                               \
     __attribute__((__alloc_size__(_arg)))
-#define HINT_LIKE_calloc(_arg1, _arg2)               \
-    unaliased                                        \
+#define LIKE_CALLOC(_arg1, _arg2)                    \
+    UNALIASED                                        \
     __attribute__((__alloc_size__(_arg1, _arg2)))
 #else
-#define HINT_LIKE_malloc(_arg) unaliased
-#define HINT_LIKE_calloc(_arg1, _arg2) unaliased
+#define LIKE_MALLOC(_arg) UNALIASED
+#define LIKE_CALLOC(_arg1, _arg2) UNALIASED
 #endif
 
 /**
@@ -121,11 +118,11 @@ extern "C"
  * a pointer to memory, the alignment of which is given in its _x'th argument.
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define HINT_LIKE_memalign(_arg1, _arg2)                  \
+#define LIKE_MEMALIGN(_arg1, _arg2)                       \
     __attribute__((__alloc_align__(_arg1)))               \
-    like(malloc, _arg2)
+    LIKE_MALLOC(_arg2)
 #else
-#define HINT_LIKE_memalign(_arg1, _arg2) like(malloc, _arg2)
+#define LIKE_MEMALIGN(_arg1, _arg2) LIKE_MALLOC(_arg2)
 #endif
 
 /**
@@ -134,10 +131,10 @@ extern "C"
  * the arguments start at _y
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define HINT_LIKE_printf(_x, _y)                        \
+#define LIKE_PRINTF(_x, _y)                             \
     __attribute__((__format__ (__printf__, _x, _y)))
 #else
-#define HINT_LIKE_printf(_x, _y)
+#define LIKE_PRINTF(_x, _y)
 #endif
 
 /**
@@ -146,10 +143,10 @@ extern "C"
  * the arguments start at _y
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define HINT_LIKE_scanf(_x, _y)                     \
+#define LIKE_SCANF(_x, _y)                          \
     __attribute__((__format__ (__scanf__, _x, _y)))
 #else
-#define HINT_LIKE_scanf(_x, _y)
+#define LIKE_SCANF(_x, _y)
 #endif
 
 /**
@@ -158,10 +155,10 @@ extern "C"
  * the arguments start at _y
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define HINT_LIKE_strftime(_x)                          \
+#define LIKE_STRFTIME(_x)                               \
     __attribute__((__format__ (__strftime__, _x, 0)))
 #else
-#define HINT_LIKE_strftime(_x)
+#define LIKE_STRFTIME(_x)
 #endif
 
 /**
@@ -170,10 +167,10 @@ extern "C"
  * and returned by the function
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define format_string(_x)                       \
+#define FORMAT_STRING(_x)                       \
     __attribute__((__format_arg__ (_x)))
 #else
-#define format_string(_x)
+#define FORMAT_STRING(_x)
 #endif
 
 
@@ -182,10 +179,10 @@ extern "C"
  * `_args` are never `NULL`
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)
-#define not_null_args(...)                     \
+#define NOT_NULL_ARGS(...)                      \
     __attribute__ ((__nonnull__ (__VA_ARGS__)))
 #else
-#define not_null_args(...)
+#define NOT_NULL_ARGS(...)
 #endif
 
 
@@ -194,9 +191,9 @@ extern "C"
  * that means a function cannot produce any observable side effects
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
-#define no_side_effects __attribute__((__pure__))
+#define NO_SIDE_EFFECTS __attribute__((__pure__))
 #else
-#define no_side_effects
+#define NO_SIDE_EFFECTS
 #endif
 
 /**
@@ -205,9 +202,9 @@ extern "C"
  * arguments
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define no_shared_state  __attribute__((__const__))
+#define NO_SHARED_STATE  __attribute__((__const__))
 #else
-#define no_shared_state
+#define NO_SHARED_STATE
 #endif
 
 
@@ -216,43 +213,43 @@ extern "C"
  * by the application
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
-#define weak_linkage __attribute__((__weak__))
+#define WEAK_LINKAGE __attribute__((__weak__))
 #else
-#define weak_linkage
+#define WEAK_LINKAGE
 #endif
 
-/** @def ANNOTATION_LINKAGE_export
+/** @def DLL_EXPORT_LINKAGE
  * A symbol is exported from a shared library
  */
-/** @def ANNOTATION_LINKAGE_import
+/** @def DLL_IMPORT_LINKAGE
  * A symbol is imported from a shared library
  * For POSIX systems these two modes are void.
  */
 #if __WIN32
-#define dll_export_linkage __declspec(dllexport)
-#define dll_import_linkage __declspec(dllimport)
+#define DLL_EXPORT_LINKAGE __declspec(dllexport)
+#define DLL_IMPORT_LINKAGE __declspec(dllimport)
 #else
-#define dll_export_linkage
-#define dll_import_linkage
+#define DLL_EXPORT_LINKAGE
+#define DLL_IMPORT_LINKAGE
 #endif
 
-/** @def LINKAGE__local
+/** @def LOCAL_LINKAGE
  * symbol is **not** exported from a shared library
  * (but unlike static symbols, it is visible to all compilation units
  * comprising the library itself)
  */
-/**  @def LINKAGE__internal
+/**  @def INTERNAL_LINKAGE
  * Like `local`, but the symbol cannot be accessed by other
  * modules even indirectly (e.g. through a function pointer)
  */
 #if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)) && __ELF__
-#define local_linkage                           \
+#define LOCAL_LINKAGE                           \
     __attribute__ ((__visibility__ ("hidden")))
-#define internal_linkage                            \
+#define INTERNAL_LINKAGE                            \
     __attribute__ ((__visibility__ ("internal")))
 #else
-#define local_linkage
-#define internal_linkage
+#define LOCAL_LINKAGE
+#define INTERNAL_LINKAGE
 #endif
 
 
@@ -260,18 +257,27 @@ extern "C"
  * The symbol should not be used and triggers a warning
  */
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
-#define deprecated __attribute__((__deprecated__))
+#define DEPRECATED __attribute__((__deprecated__))
 #else
-#define deprecated
+#define DEPRECATED
 #endif
 
 /**
  * Marks a symbol as explicitly unused
  */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define unused __attribute__((__unused__))
+#define UNUSED __attribute__((__unused__))
 #else
-#define unused
+#define UNUSED
+#endif
+
+/**
+ * Marks a symbol as used
+ */
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#define USED __attribute__((__used__))
+#else
+#define USED
 #endif
 
 /**@}*/
@@ -310,9 +316,9 @@ extern "C"
  * define our own macro
  */
 #if __STDC_VERSION__ >= 199901L || (defined(__GNUC__) && !__STRICT_ANSI__)
-#define at_least(_x) static _x
+#define AT_LEAST(_x) static _x
 #else
-#define at_least(_x) _x
+#define AT_LEAST(_x) _x
 #endif
 
 /**
@@ -324,9 +330,9 @@ extern "C"
  */
 #if (__STDC_VERSION__ >= 199901L && !__STDC_NO_VLA__) ||    \
     (defined(__GNUC__) && !__STRICT_ANSI__)
-#define var_size(_x) _x
+#define VAR_SIZE(_x) _x
 #else
-#define var_size(_x)
+#define VAR_SIZE(_x)
 #endif
     
 /**
@@ -343,11 +349,11 @@ extern "C"
 #endif
 
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define constructor static __attribute__((__constructor__))
-#define destructor static __attribute__((__destructor__))
+#define CONSTRUCTOR static __attribute__((__constructor__))
+#define DESTRUCTOR static __attribute__((__destructor__))
 #else
-#define constructor constructors_are_not_supported
-#define destructor constructors_are_not_supported
+#define CONSTRUCTOR constructors_are_not_supported
+#define DESTRUCTOR constructors_are_not_supported
 #endif
 
 /**@}*/

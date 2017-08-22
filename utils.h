@@ -37,38 +37,34 @@ extern "C"
 #include "compiler.h"
 #include <gc.h>
 
-must_use not_null like(malloc, 1)
-static inline void *
-tn_alloc(size_t sz)
+static inline MUST_USE NOT_NULL LIKE_MALLOC(1)
+void *tn_alloc(size_t sz)
 {
     void *obj = GC_MALLOC(sz);
     assert(obj != NULL);
     return obj;
 }
 
-must_use not_null like(malloc, 1)
-static inline void *
-tn_alloc_blob(size_t sz)
+static inline MUST_USE NOT_NULL LIKE_MALLOC(1)
+void *tn_alloc_blob(size_t sz)
 {
     void *obj = GC_MALLOC_ATOMIC(sz);
     assert(obj != NULL);
     return obj;
 }
 
-must_use not_null
-static inline void *
-tn_realloc(void *ptr, size_t newsz)
+static inline MUST_USE NOT_NULL
+void *tn_realloc(void *ptr, size_t newsz)
 {
     void *obj = GC_REALLOC(ptr, newsz);
     assert(obj != NULL);
     return obj;
 }
 
-must_use not_null
-static inline char *
-tn_cstrdup(const char *str)
+static inline MUST_USE NOT_NULL
+char *tn_cstrdup(const char *str)
 {
-    char *copy = GC_STRDUP(str);
+    char *copy = GC_STRDUP(str ? str : "");
     assert(copy != NULL);
     return copy;
 }
@@ -77,8 +73,8 @@ tn_cstrdup(const char *str)
 
 typedef GC_finalization_proc tn_finalizer;
 
-static inline void
-tn_set_finalizer(void *obj, tn_finalizer fn, void *data)
+static inline
+void tn_set_finalizer(void *obj, tn_finalizer fn, void *data)
 {
     GC_register_finalizer(obj, fn, data, NULL, NULL);
 }
