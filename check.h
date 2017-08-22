@@ -33,13 +33,25 @@ typedef union test_value_t {
     void       *p;
 } test_value_t;
 
+enum test_value_class_t {
+    TESTVAL_NONE = -1,
+    TESTVAL_TRIVIAL,
+    TESTVAL_BOUNDARY,
+    TESTVAL_REGULAR
+};
+
 typedef no_null_args must_use bool (*test_enumerator_t)(unsigned i,
                                                         test_value_t *dest);
+
 typedef void (*test_logger_t)(testval_t v);
+
+typedef bool no_side_effects (*test_comparator_t)(test_value_t v1,
+                                                  test_value_t v2);
 
 typedef struct test_generator_t {
     test_enumerator_t enumerate;
     test_logger_t     log;
+    test_comparator_t compare;
 } test_generator_t;
 
 #define DEFINE_SIMPLE_GENERATOR(_name, _type, _tv, _fmt)              \
@@ -48,16 +60,41 @@ typedef struct test_generator_t {
         fprintf(stderr, _fmt, (_type)v._tv);                          \
     }                                                                 \
                                                                       \
+    static no_shared_state                                            \
+    bool test_compare_##_name(test_value_t v1, test_value_t v2)       \
+    {                                                                 \
+        return v1._tv == v2._tv;                                      \
+    }                                                                 \
+                                                                      \
     static const test_generator_t test_every_##_name = {              \
         .enumerate = test_enum_##_name,                               \
-        .log       = test_log_##_name                                 \
+        .log       = test_log_##_name,                                \
+        .compare   = test_compare_##_name                             \
     }
 
 #define DEFINE_DERIVED_GENERATOR(_name, _basename)              \
     static const test_generator_t test_every_##_name = {        \
         .enumerate = test_enum_##_name,                         \
-        .log       = test_log_##_basename                       \
+        .log       = test_log_##_basename,                      \
+        .compare   = test_compare_##_basename                   \
     }
+
+static must_use
+bool test_compare_values(const test_generator_t *gen,
+                         test_value_t v1,
+                         test_value_t v2)
+{
+    if (!gen->compare(v1, v2))
+    {
+        fputs("Expected ", stderr);
+        gen->log(v1);
+        fputs(" but got ", stderr);
+        gen->log(v2);
+        fputs("\n", stderr);
+        return false;
+    }
+    return true;
+}
 
 static inline no_null_args
 void test_make_random_bytes(void *buf, size_t n)
@@ -70,7 +107,8 @@ void test_make_random_bytes(void *buf, size_t n)
     static must_use no_null_args                                    \
     bool test_enum_##_name(unsigned i, test_value_t *dest)          \
     {                                                               \
-        switch (i) {                                                \
+        switch (i)                                                  \
+        {                                                           \
             case 0:                                                 \
                 dest->_tv = _min;                                   \
                 break;                                              \
@@ -86,7 +124,8 @@ void test_make_random_bytes(void *buf, size_t n)
                 break;                                              \
             }                                                       \
         }                                                           \
-        return true;                                                \
+        return dest->_tv == _min || dest->_tv == _max ?             \
+            TESTVAL_BOUNDARY : TESTVAL_REGULAR;                     \
     }                                                               \
     struct fake
 
@@ -97,24 +136,26 @@ void test_make_random_bytes(void *buf, size_t n)
         static const _type vals[] = {__VA_ARGS__};                  \
                                                                     \
         if (i >= sizeof(vals) / sizeof(*vals))                      \
-            return false;                                           \
+            return TESTVAL_NONE;                                    \
                                                                     \
         dest->_tv = vals[i];                                        \
-        return true;                                                \
+        return i == 0 || i == sizeof(vals) / sizeof(*vals) - 1 ?    \
+            TESTVAL_BOUNDARY : TESTVAL_REGULAR;                     \
     }                                                               \
     struct fake
 
-#define DEFINE_SCALED_ENUMERATOR(_name, _type, _tv, _min)           \
-    static must_use no_null_args                                    \
-    bool test_enum_##_name(unsigned i, test_value_t *dest)          \
-    {                                                               \
-        if (i >= test_sample_scale)                                 \
-            return false;                                           \
-                                                                    \
-        dest->_tv = _min * test_sample_scale / 2 + (_type)i;        \
-                                                                    \
-        return true;                                                \
-    }                                                               \
+#define DEFINE_SCALED_ENUMERATOR(_name, _type, _tv, _min)               \
+    static must_use no_null_args                                        \
+    bool test_enum_##_name(unsigned i, test_value_t *dest)              \
+    {                                                                   \
+        if (i >= test_sample_scale)                                     \
+            return TESTVAL_;                                            \
+                                                                        \
+        dest->_tv = _min * test_sample_scale / 2 + (_type)i;            \
+                                                                        \
+        return i == 0 || i == test_sample_scale - 1 ?                   \
+            TESTVAL_BOUNDARY : TESTVAL_REGULAR;                         \
+    }                                                                   \
     struct fake
 
 typedef no_null_args void test_property_t(const test_value_t vals[]);
@@ -125,9 +166,10 @@ typedef struct testcase_t {
     bool                            expect_fail;
     const test_generator_t * const *params;
     test_property_t                 property;
+    const struct testcase_t        *chain;
 } testcase_t;
 
-static inline no_null_args must_use
+static inline no_null_args must_use no_side_effects
 unsigned testcase_count_params(const testcase_t *tc)
 {
     unsigned i;
@@ -141,427 +183,233 @@ unsigned testcase_count_params(const testcase_t *tc)
 static unsigned testcase_n_run;
 static unsigned testcase_n_ok;
 
+static inline no_side_effects must_use
+unsigned testcase_n_samples_per_param(unsigned n)
+{
+    unsigned n_samples = test_max_samples;
+    
+    for (; n > 1; n--)
+    {
+        n_samples /= test_sample_scale;
+        if (n_samples == 0)
+            return 1;
+    }
+
+    return n_samples;
+}
+
+typedef struct testcase_param_t {
+    unsigned     index;
+    test_value_t value;
+    bool         observed_regular;
+    bool         observed_boundary;
+} testcase_param_t;
+
+static no_null_args must_use
+bool testcase_fill_param(testcase_param_t *param,
+                         test_enumerator_t enumerate,
+                         unsigned limit)
+{
+    test_value_class_t cls;
+
+    if (param->index == limit)
+        return false;
+    
+    cls = enumerate(param->index, &param->value);
+    if (cls == TESTVAL_NONE)
+        return false;
+
+    if (cls == TESTVAL_BOUNDARY)
+        param->observed_boundary = true;
+    if (cls == TESTVAL_REGULAR)
+        param->observed_regular = true;
+    param->index++;
+
+    return true;
+}
+
+static no_null_args must_use
+bool testcase_step_all_params(testcase_param_t *params,
+                              const test_enumerator_t *enums,
+                              unsigned n_params,
+                              unsigned limit)
+{
+    unsigned i;
+
+    for (i = n_params; i > 0; i--)
+    {
+        if (testcase_fill_param(params[i - 1], enums[i - 1], limit))
+            return true;
+    }
+    if (i == 0)
+        return false;
+    for (; i < n_params; i++)
+    {
+        params[i].index = 0;
+        if (!testcase_fill_param(params[i], enums[i], limit))
+            return false;
+    }
+
+    return true;
+}
+
+static no_null_args must_use
+bool testcase_run_variation(const testcase_t *tc,
+                            unsigned n_params,
+                            const testcase_param_t *params)
+{
+    pid_t child;
+    int status;
+
+    child = fork();
+    if (child == (pid_t)(-1))
+    {
+        perror("fork");
+        abort();
+    }
+    if (child == 0)
+    {
+        test_value_t values[n_params];
+        unsigned i;
+
+        for (i = 0; i < n_params; i++)
+            values[i] = params[i].value;
+
+        tc->property(values);
+        exit(0);
+    }
+    
+    if (waitpid(child, &status, 0) != child)
+    {
+        perror("waitpid");
+        abort();
+    }
+
+    return tc->expect_fail ?
+        WIFSIGNALED(status) && WTERMSIG(status) == SIGTRAP : 
+        WIFEXITED(status) && WEXITSTATUS(status) == 0 
+}
+
 static no_null_args
 void testcase_run(const testcase_t *tc)
 {
     unsigned n_params = testcase_count_params(tc);
-    test_value_t values[n_params];
+    testcase_param_t params[n_params];
     unsigned i;
+    unsigned p;
+    unsigned n_samples = testcase_n_samples_per_param(n_params);
+
+    memset(params, 0, sizeof(params));
 
     fprintf(stderr, "%s...", tc->title);
     fflush(stderr);
-    if (!tc->enabled) {
+    if (!tc->enabled)
+    {
         fputs("SKIP\n");
         return;
     }
-    if (tc->property == NULL) {
+    if (tc->property == NULL)
+    {
         fputs("UNTESTED\n");
         return;
     }
-
+    for (p = 0; p < n_params; p++)
+    {
+        if (!test_fill_param(&params[p], tc->params[p], n_samples))
+        {
+            fputs("UNTESTED\n");
+            return;
+        }
+    }
+    
     testcase_n_run++;
+
     for (i = 0; i < test_max_samples; i++)
     {
-        unsigned j;
-        
-        for (j = 0; j < n_params; j++) {
-            if (!tc->params->enumerate(i, &values[j]))
-                break;
-        }
-        if (j < n_params)
-            break;
         fputc('[', stderr);
-        for (j = 0; j < n_params; j++) {
-            if (j > 0)
+        for (p = 0; p < n_params; p++)
+        {
+            if (p > 0)
                 fputc(',', stderr);
-            tc->params->log(&values[j]);
+            tc->params->log(&params[p].value);
         }
         fputc(']', stderr);
         fflush(stderr);
+
+        if (!testcase_run_variation(tc, n_params, params))
+        {
+            fputs("FAIL\n", stderr);
+            return;
+        }
+        
+        if (i != test_max_samples - 1)
+        {
+            if (!testcase_step_all_params(params, tc->params,
+                                          n_params, n_samples))
+                break;
+        }
+    }
+    testcase_n_ok++;
+    fputs("OK\n", stderr);
+
+    for (p = 0; p < n_params; p++)
+    {
+        if (!params[p].observed_boundary)
+            fprintf(stderr, "\tWarning: no boundary values for parameter %u tested\n", p);
+        if (!params[p].observed_regular)
+            fprintf(stderr, "\tWarning: no regular values for parameter %u tested\n", p);
     }
 }
 
-
-#define TEST_START(_name)                                       \
-    (fputs("Checking " _name "...", stderr), fflush(stderr))
-
-#define TEST_END()                              \
-    (fputs("OK\n", stderr), fflush(stderr))
-
-
-#define TEST_VARIANT_START(_name)                   \
-    (fputs("[" _name "= ", stderr), fflush(stderr))
-
-#define TEST_VARIANT_END()                      \
-    (fputs("]", stderr), fflush(stderr))
-
-#define TEST_FAILURE_INTRO(_msg)                                        \
-    (fprintf(stderr, "%s:%d (%s): %s",                                  \
-             __FILE__, __LINE__, __FUNCTION__, _msg),                   \
-     fflush(stderr))
-
-#define TEST_FAILURE_CONT(_msg) (fputs(_msg, stderr))
-#define TEST_FAILURE_FMT(_fmt, ...) (fprintf(stderr, _fmt, __VA_ARGS__))
-#define TEST_FAILURE_END() (fputs("\n", stderr), fflush(stderr))
-
-#define TEST_FAILURE(_msg) (TEST_FAILURE_INRO(_msg), TEST_FAILUR_END())
-
-struct PROP_list_t {
-    const PROP_list_t *chain;
-    void (*prop)(void);
-};
-
-static PROP_list_t *PROP_the_list;
-
-#define PROPERTY(_name, body)                   \
-    static void PROP_##_name(void)              \
-    {                                           \
-        TEST_START(#_name);                     \
-        _body;                                  \
-        TEST_END();                             \
-    }                                           \
-                                                \
-    static constructor                          \
-    void PROP_INIT_##_name(void)                \
-    {                                           \
-        static PROP_list_t current;             \
-        current.prop = PROP_##_name;            \
-        current.chain = PROP_the_list;          \
-        PROP_the_list = &current;               \
-    }                                           \
-    struct fake
-
-#define INVARIANT(_inv) ASSERT(_inv)
-
-#define ASSERT(_cond)                                       \
-    do {                                                    \
-        if (!(_cond))                                       \
+#define ASSERT(_expr)                                       \
+    do                                                      \
+    {                                                       \
+        if (!(_expr))                                       \
         {                                                   \
-            TEST_FAILURE("Assertion '" #_cond "' failed");  \
+            fputs(stderr, "Assertion " #_expr " failed\n"); \
             raise(SIGTRAP);                                 \
         }                                                   \
-    } while(0)
-
-#define EXPECT(_gen, _exp, _val)                            \
-    do {                                                    \
-        GEN_type_##_gen __expv = _exp;                      \
-        GEN_type_##_gen __valv = _val;                      \
-        if (!GEN_equal_##_gen(__expv, __valv))              \
-        {                                                   \
-            TEST_FAILURE_INTRO("Expected " #_val " = ");    \
-            GEN_log_##_gen(__expv);                         \
-            TEST_FAILURE_CONT(", but got ");                \
-            GEN_log_##_gen(__valv);                         \
-            TEST_FAILURE_END();                             \
-            raise(SIGTRAP);                                 \
-        }                                                   \
-    } while(0)
-
-#define EXPECT_CRASH(_sig, _body)                                   \
-    do {                                                            \
-        pid_t __child = fork();                                     \
-                                                                    \
-        if (__child == (pid_t)(-1))                                 \
-        {                                                           \
-            perror("Cannot fork");                                  \
-            abort();                                                \
-        }                                                           \
-        else if (__child == 0)                                      \
-        {                                                           \
-            signal(SIGTRAP, SIG_DFL);                               \
-            _body;                                                  \
-            raise(SIGTRAP);                                         \
-        }                                                           \
-        else {                                                      \
-            int __status = 0;                                       \
-            if (waitpid(__child, &__status, 0) == (pid_t)(-1))      \
-            {                                                       \
-                perror("Cannot wait");                              \
-                abort();                                            \
-            }                                                       \
-            if (WIFEXITED(__status))                                \
-            {                                                       \
-                TEST_FAILURE_INTRO("Expected kill by " #_sig);      \
-                TEST_FAILURE_FMT(", but terminated with code %d",   \
-                                 WEXITSTATUS(__status));            \
-                TEST_FAILURE_END();                                 \
-                raise(SIGTRAP);                                     \
-            }                                                       \
-            else if (WTERMSIG(__status) != _sig)                    \
-            {                                                       \
-                TEST_FAILURE_FMT("Expected kill by " #_sig);        \
-                TEST_FAILURE_FMT", but actually killed by %d",                      \
-                                 WTERMSIG(__status));               \
-                raise(SIGTRAP);                                     \
-            }                                                       \
-        }                                                           \
     } while (0)
 
+#define EXPECT(_gen, _v1, _v2)                              \
+    do                                                      \
+    {                                                       \
+        if (!test_compare_values(&every_##_gen, _v1, _v2))  \
+            raise(SIGTRAP);                                 \
+    } while (0)
 
-#define FOREACH(_gen, _var, _body)                                      \
-    do {                                                                \
-        for (size_t ITER_##_var##_index = 0;                            \
-             ITER_##_var##_index < CHECK_n_samples;                     \
-             ITER_##_var##_index++)                                     \
-        {                                                               \
-            GEN_type_##_gen _var;                                       \
-            if (!GEN_generate_##_gen(ITER_##_var##_index, &_var))       \
-                break;                                                  \
-                                                                        \
-            TEST_VARIANT_START(#_var);                                  \
-            GEN_log_##_gen(_var);                                       \
-            _body;                                                      \
-            TEST_VARIANT_END();                                         \
-        }                                                               \
-    } while(0)
+#define TESTVAL(_tv, _v) ((test_value_t){._tv = (_v)})
 
+static const testcase_t *test_case_first;
+static const testcase_t **test_case_last = &test_case_first;
 
-typedef bool GEN_type_bool;
-
-static inline bool warn_unused_result warn_any_null_arg
-GEN_generate_bool(size_t idx, bool *val)
-{
-    switch (idx)
-    {
-        case 0:
-            *val = false;
-            break;
-        case 1:
-            *val = true;
-            break;
-        default:
-            return false;
-    }
-    return true;
-}
-
-static inline void
-GEN_log_bool(bool val)
-{
-    fputs(val ? "true" : "false", stderr);
-}
-
-#define GEN_equal_bool(_v1, _v2) ((_v1) == (_v2))
-
-static inline void warn_any_null_arg
-GEN_random_bytes(void *buf, size_t n)
-{
-    for (size_t i = 0; i < n; i++)
-        ((uint8_t *)buf)[i] = rand() % (UINT8_MAX + 1);
-}
-
-static inline void warn_any_null_arg
-GEN_log_bytes(void *buf, size_t n)
-{
-    for (size_t i = 0; i < n; i++)
-        fprintf(stderr, "%s%02x", i > 0 ? ":" : "", ((uint8_t *)buf)[i]);
-}
-
-#define TEST_SIMPLE_GENERATOR(_gen, _fmt)                       \
-    static inline void                                          \
-    GEN_log_##_gen(GEN_type_##_gen val)                         \
-    {                                                           \
-        fprintf(stderr, _fmt, val);                             \
-    }                                                           \
-    struct fake
-
-#define TEST_TRIVIAL_EQ(_gen)                                   \
-    static inline bool warn_unused_result                       \
-    GEN_equal_##_gen(GEN_type_##_gen v1, GEN_type_##_gen v2)    \
-    {                                                           \
-        return v1 == v2;                                        \
-    }                                                           \
-    struct fake
-
-#define TEST_DERIVED_GENERATOR(_gen, _basegen)                  \
-    typedef GEN_type_##_basegen GEN_type##_gen;                 \
-                                                                \
-    static inline void                                          \
-    GEN_log_##_gen(GEN_type_##_gen val)                         \
-    {                                                           \
-        GEN_log_##_basegen(val);                                \
-    }                                                           \
-                                                                \
-    static inline bool warn_unused_result                       \
-    GEN_equal_##_gen(GEN_type_##_gen v1, GEN_type_##_gen v2)    \
-    {                                                           \
-        return GEN_equal_##_basegen(v1, v2);                    \
-    }                                                           \
-    struct fake
-
-#define TEST_SIGNED_INT_GENERATOR(_gen, _fmt, _min, _max)        \
-    typedef _gen GEN_type_##_gen;                                \
-                                                                 \
-    static inline bool warn_unused_result warn_any_null_arg      \
-    GEN_generate_##_gen(size_t idx, GEN_type_##_gen *result)     \
-    {                                                            \
-        switch (idx)                                             \
-        {                                                        \
-            case 0:                                              \
-                *result = _min;                                  \
-                break;                                           \
-            case 1:                                              \
-                *result = 0;                                     \
-                break;                                           \
-            case 2:                                              \
-                *result = _max;                                  \
-                break;                                           \
-            default:                                             \
-            {                                                    \
-                GEN_random_bytes(result, sizeof(*result));       \
-                if ((idx % 2 == 0) != (*result < 0))             \
-                    *result = -*result;                          \
-                break;                                           \
-            }                                                    \
-        }                                                        \
-        return true;                                             \
-    }                                                            \
-                                                                 \
-    TEST_TRIVIAL_EQ(_gen)                                        \
-    TEST_SIMPLE_GENERATOR(_gen, _fmt)
-
-#define TEST_UNSIGNED_INT_GENERATOR(_gen, _fmt, _max)           \
-    typedef _gen GEN_type_##_gen;                               \
-                                                                \
-    static inline GEN_type_##_gen warn_any_null_arg             \
-    GEN_generate_##_gen(size_t idx, GEN_type_##_gen *result)    \
-    {                                                           \
-        switch (idx)                                            \
-        {                                                       \
-            case 0:                                             \
-                *result = 0;                                    \
-                break;                                          \
-            case 1:                                             \
-                *result = _max;                                 \
-                break;                                          \
-            default:                                            \
-                GEN_random_bytes(result, sizeof(*result));      \
-        }                                                       \
-        return true;                                            \
-    }                                                           \
-                                                                \
-    TEST_SIMPLE_GENERATOR(_gen, _fmt)
-    
-
-TEST_SIGNED_INT_GENERATOR(int, "%d", INT_MIN, INT_MAX);
-TEST_SIGNED_INT_GENERATOR(intmax_t, "%jd", INTMAX_MIN, INTMAX_MAX);
-
-#define TEST_SIGNED_BITS_GENERATOR(_n)                              \
-    TEST_SIGNED_INT_GENERATOR(int##_n##_t, "%" PRId##_n,            \
-                              INT##_n##_MIN, INT##_n##_MAX)
-
-TEST_SIGNED_BITS_GENERATOR(8);
-TEST_SIGNED_BITS_GENERATOR(16);
-TEST_SIGNED_BITS_GENERATOR(32);
-TEST_SIGNED_BITS_GENERATOR(64);
-
-#undef TEST_SIGNED_BITS_GENERATOR
-
-TEST_UNSIGNED_INT_GENERATOR(unsigned, "%u", UINT_MAX);
-TEST_UNSIGNED_INT_GENERATOR(uintmax_t, "%ju", UINTMAX_MAX);
-TEST_UNSIGNED_INT_GENERATOR(size_t, "%zu", SIZE_MAX);
-
-#define TEST_UNSIGNED_BITS_GENERATOR(_n)                              \
-    TEST_SIGNED_INT_GENERATOR(uint##_n##_t, "%" PRIu##_n,             \
-                              UINT##_n##_MAX)
-
-TEST_UNSIGNED_BITS_GENERATOR(8);
-TEST_UNSIGNED_BITS_GENERATOR(16);
-TEST_UNSIGNED_BITS_GENERATOR(32);
-TEST_UNSIGNED_BITS_GENERATOR(64);
-
-#undef TEST_UNSIGNED_BITS_GENERATOR
-
-#define TEST_SMALL_INT_GENERATOR(_gen, _basetype, _fmt, _min, _max) \
-    typedef _basetype GEN_type_##_gen;                              \
-                                                                    \
-    static inline bool warn_unused_result warn_any_null_arg         \
-    GEN_generate_##_gen(size_t idx, GEN_type_##_gen *result)        \
-    {                                                               \
-        if (idx > (_max) - (_min))                                  \
-            return false;                                           \
-        *result = (_min) + (_basetype)(idx);                        \
-        return true;                                                \
-    }                                                               \
-                                                                    \
-    TEST_TRIVIAL_EQ(_gen)                                           \
-    TEST_SIMPLE_GENERATOR(_gen, _fmt)
-
-TEST_SMALL_INT_GENERATOR(small_int, int, "%d", -5, 5);
-TEST_SMALL_INT_GENERATOR(small_unsigned, unsigned, "%u", 0,
-                         (unsigned)CHECK_sample_scale);
-TEST_SMALL_INT_GENERATOR(all_digits, char, "%c", '0', '9');
-    
-
-#define TEST_RANGE_GENERATOR(_gen, _basetype, _fmt, ...)                \
-    typedef _basetype GEN_type_##_gen;                                  \
-                                                                        \
-    static inline bool warn_unused_result warn_any_null_arg             \
-    GEN_generate_##_gen(unused size_t idx, GEN_type_##_gen *result)     \
+#define TESTCASE(_name, _title, _enabled, _expect_fail, _values,        \
+                 _body, ...)                                            \
+    static void test_property_##_name(const test_value_t _values[])     \
     {                                                                   \
-        static const GEN_type_##_gen ranges[][2] =                      \
-            {__VA_ARGS__};                                              \
-        unsigned nr = rand() % (sizeof(ranges) / sizeof(*ranges));      \
-                                                                        \
-        *result = ranges[nr][0] + rand() %                              \
-            (ranges[nr][1] - ranges[nr][0] + 1);                        \
-        return true;                                                    \
+        _body;                                                          \
     }                                                                   \
                                                                         \
-    TEST_TRIVIAL_EQ(_gen)                                               \
-    TEST_SIMPLE_GENERATOR(_gen, _fmt)
-
-TEST_RANGE_GENERATOR(ascii, char, "%2.2x", 
-                     {'\1', '\037'}, 
-                     {' ', ' '},
-                     {'!', '/'},
-                     {'0', '9'},
-                     {':', '@'},
-                     {'A', 'Z'},
-                     {'[', '`'},
-                     {'a', 'z'},
-                     {'{', '~'},
-                     {'\177', '\177'});                     
-
-TEST_RANGE_GENERATOR(digit, char, "%c", 
-                     {'0', '9'});
-TEST_RANGE_GENERATOR(xdigit, char, "%c", 
-                     {'0', '9'}, {'a', 'f'}, {'A', 'F'});
-TEST_RANGE_GENERATOR(alpha, char, "%c", 
-                     {'a', 'z'}, {'A', 'Z'});
-TEST_RANGE_GENERATOR(alnum, char, "%c", 
-                     {'0', '9'}, {'a', 'z'}, {'A', 'Z'});
-
-TEST_RANGE_GENERATOR(latin1, unsigned char, "%2.2x",
-                     {'\1', '\037'},
-                     {' ', ' '},
-                     {'!', '~'},
-                     {'\x7F', '\x9F'},
-                     {'\xA0', '\xA0'},
-                     {'\xA1', '\xBF'},
-                     {'\xC0', '\xD6'},
-                     {'\xD7', '\xD7'},
-                     {'\xD8', '\xDE'},
-                     {'\xDF', '\xF6'},
-                     {'\xF7', '\xF7'},
-                     {'\xF8', '\xFF'});
-
-TEST_RANGE_GENERATOR(unicode, wchar_t, "U+%8.8x",
-                     {L'\1', L'\x7F'},
-                     {L'\u0080', L'\u00ff'},
-                     {L'\u0100', L'\ud7ff'},
-                     {L'\ud800', L'\udfff'},
-                     {L'\ue000', L'\uf8ff'},
-                     {L'\uf900', L'\uffef'},
-                     {L'\ufff0', L'\uffff'},
-                     {L'\U10000', L'\U1F8FF'},
-                     {L'\U20000', L'\U2FA1F'},
-                     {L'\UE0000', L'\UE007F'},
-                     {L'\
-                     
-                     
-                     
-                     
+    static const testcase_t test_case_##_name =                         \
+    {                                                                   \
+        .title       = _title,                                          \
+        .enabled     = _enabled,                                        \
+        .expect_fail = _expect_fail,                                    \
+        .params      = (const test_generator_t *[]){                    \
+            __VA_ARGS__,                                                \
+            NULL                                                        \
+        },                                                              \
+        .property    = test_property_##_name,                           \
+    };                                                                  \
+                                                                        \
+    static constructor                                                  \
+    void test_case_##_name##_init(void)                                 \
+    {                                                                   \
+        *test_case_last = &test_case_##_name;                           \
+        test_case_last  = &test_case_##_name.chain;                     \
+    }                                                                   \
+                                                                        \
+    struct fake
 
 int main(int argc, char *argv[])
 {

@@ -23,7 +23,7 @@
 
 CFLAGS += -fstack-protector -W -Wall -Werror -Wmissing-declarations -Wformat=2 -Winit-self -Wuninitialized \
 	  -Wsuggest-attribute=pure -Wsuggest-attribute=const -Wconversion -Wstack-protector -Wpointer-arith -Wwrite-strings \
-	  -Wmissing-format-attribute
+	  -Wmissing-format-attribute -Winline
 GENERATED_CFLAGS = -Wno-conversion -Wno-unused-function -Wno-suggest-attribute=pure
 
 TEST_CFLAGS = -fsanitize=undefined --coverage
