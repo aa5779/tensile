@@ -30,13 +30,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#if DO_TESTS
-#include <unistd.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <errno.h>
-#endif
 #include "status.h"
+#include "check.h"
 
 enum tn_severity tn_verbosity_level = TN_INFO;
 
@@ -61,7 +56,8 @@ tn_report_statusv(enum tn_severity severity, const char *module,
             assert(status != 0);
             if (exception_handler)
             {
-                vsnprintf((char *)exception_details, sizeof(exception_details),
+                vsnprintf((char *)exception_details,
+                          sizeof(exception_details),
                           fmt, args);
                 exception_code = status;
                 exception_origin = module;
@@ -102,7 +98,8 @@ tn_fatal_error(const char *module, tn_status status, const char *fmt, ...)
 }
 
 void
-tn_throw_exception(const char *module, tn_status status, const char *fmt, ...)
+tn_throw_exception(const char *module, tn_status status,
+                   const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -114,18 +111,36 @@ tn_throw_exception(const char *module, tn_status status, const char *fmt, ...)
 }
 
 #if DO_TESTS
-static void test_simple_report(void)
-{
-    tn_report_status(TN_WARNING, "test", EACCES, "test %s", "test");
-    tn_report_status(TN_INFO, "info", EACCES, "info %s", "test");    
-    tn_report_status(TN_TRACE, "debug", EACCES, "debug %s", "test");
-    tn_verbosity_level = TN_ERROR;
-    tn_report_status(TN_WARNING, "test", EACCES, "test %s", "test");
-    tn_verbosity_level = TN_TRACE;
-    tn_report_status(TN_TRACE, "debug", EACCES, "debug %s", "test");
-    tn_internal_error(TN_ERROR, EINVAL, "internal error %s", "test");
-}
 
+DEFINE_ENUM_ENUMERATOR(nonfatal_severity, enum tn_severity, i,
+                       TN_ERROR, TN_TRACE);
+DEFINE_DERIVED_GENERATOR(nonfatal_severity, int, TVCLASS(NORMAL), 0);
+
+DEFINE_SEQ_ENUMERATOR(tn_status, tn_status, i, 0, EACCES, EINVAL);
+DEFINE_DERIVED_GENERATOR(tn_status, int, TVCLASS(NORMAL), 0);
+
+TESTCASE(report_error, "Report errors when severity level is high enough",
+         true, false, values,
+         {
+             test_value_t output;
+             REDIRECT_STDERR(&output,
+                             {
+                                 tn_verbosity_level =
+                                     (enum tn_severity)values[0].i;
+                                 tn_report_status(
+                                         (enum tn_severity)values[0].i,
+                                         "test",
+                                         (tn_status)values[1].u, "<%s>",
+                                         values[2].s);
+                             }
+                 );
+             fprintf(stderr, "%s\n", output.s);
+         },
+         &test_every_nonfatal_severity,
+         &test_every_tn_status,
+         &test_every_alnums);
+
+#if 0
 static void test_fatal_error(bool is_fatal)
 {
     pid_t child = fork();
@@ -149,6 +164,8 @@ static void test_fatal_error(bool is_fatal)
         assert(WTERMSIG(status) == SIGABRT);
     }
 }
+#endif
+
 #endif
 
 tn_status
@@ -189,7 +206,7 @@ tn_with_exception(tn_status (*action)(void *),
     return exception_code;
 }
 
-#if DO_TESTS
+#if 0
 
 static tn_status test_action1(unused void *arg)
 {

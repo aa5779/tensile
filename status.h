@@ -70,7 +70,7 @@ extern enum tn_severity tn_verbosity_level;
  * @param fmt      printf-style format string
  * @param ...      Format arguments
  */
-hint_printf_like(4, 5)
+LIKE_PRINTF(4, 5)
 extern void tn_report_status(enum tn_severity severity,
                              const char *module,
                              tn_status status,
@@ -85,7 +85,7 @@ extern void tn_report_status(enum tn_severity severity,
  * @param fmt      printf-style format string
  * @param args     Format arguments as va_list
  */
-hint_printf_like(4, 0)
+LIKE_PRINTF(4, 0)
 extern void tn_report_statusv(enum tn_severity severity,
                               const char *module,
                               tn_status status,
@@ -94,14 +94,14 @@ extern void tn_report_statusv(enum tn_severity severity,
 /**
  * Equivalent of `tn_report_status(TN_FATAL, ...)`
  */
-hint_printf_like(3, 4)
+LIKE_PRINTF(3, 4)
 extern noreturn void tn_fatal_error(const char *module, tn_status status,
                                     const char *fmt, ...);
 
 /**
  * Equivalent of `tn_report_status(TN_EXCEPTION, ...)`
  */
-hint_printf_like(3, 4)
+LIKE_PRINTF(3, 4)
 extern noreturn void tn_throw_exception(const char *module, tn_status status,
                                         const char *fmt, ...);
 
@@ -131,8 +131,7 @@ typedef tn_status (*tn_exception_handler)(void *data, const char *module,
  * @param handler  Optional exception handler
  * @param data     User data to pass to @a action and @a handler
  */
-warn_unused_result
-warn_null_args(1)
+MUST_USE NOT_NULL_ARGS(1)
 extern tn_status tn_with_exception(tn_status (*action)(void *),
                                    tn_exception_handler handler,
                                    void *data);

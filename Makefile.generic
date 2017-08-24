@@ -77,14 +77,14 @@ endif
 
 .SECONDARY :
 
-C_SOURCES = status.c dstring.c xdr.c
+C_SOURCES = status.c # dstring.c xdr.c
 
-GENERATED_SOURCES = tensile.tab.c lex.yy.c
+GENERATED_SOURCES = # tensile.tab.c lex.yy.c
 
 SOURCES = $(C_SOURCES)
 SOURCES += $(GENERATED_SOURCES)
 
-TESTABLES = status xdr dstring
+TESTABLES = selftest status # xdr dstring
 
 APPLICATION = tensilec
 
@@ -108,7 +108,7 @@ tests/%.d : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
 tests/%_ts : CFLAGS += $(TEST_CFLAGS)
 
 %_ts : %_ts.o
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(TEST_LDFLAGS) $^ $(LDLIBS) $(TEST_LDLIBS)
 
 tests/%_ts.o : %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
@@ -117,7 +117,7 @@ ifneq ($(MAKECMDGOALS),clean)
 Makefile Makefile.generic : $(GENERATED_SOURCES)
 
 include $(C_SOURCES:.c=.d)
-include $(patsubst %.c,tests/%_ts.d,$(C_SOURCES))
+include $(patsubst %,tests/%_ts.d,$(TESTABLES))
 endif
 
 .PHONY : check
@@ -148,9 +148,9 @@ else
 
 endif
 
-%_ts.out : %_ts ../../../%.exp
+%_ts.out : %_ts
 	@$(RM) $<.gcda
-	@$(abspath $<) 2>&1 | diff -u $(filter %.exp,$^) - >$@
+	@$(abspath $<) >$@ 2>&1
 
 .PHONY : doc
 doc :
