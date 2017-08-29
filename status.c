@@ -30,24 +30,224 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <fmtmsg.h>
+#define THE_COMPONENT "library"
+#define THE_MODULE "status"
 #include "status.h"
 #include "check.h"
 
+static tn_error_table_t sys_error_table = {
+    .namespace = 0,
+    .errfunc   = (const char *(*)(int))strerror,
+    .n_errs    = 0,
+    .errs      = NULL,
+    .chain     = NULL,
+};
+
+static tn_error_table_t *error_tables = &sys_error_table;
+static unsigned dynamic_ns_seq = 0;
+
+#define DYNAMIC_NS_BIT (1 << 15)
+
+void tn_register_error_table(tn_error_table_t *table)
+{
+    tn_error_table_t *iter;
+
+    assert(table->chain == NULL);
+    if (table->namespace == TN_ERROR_NS_DYNAMIC)
+    {
+        table->namespace = DYNAMIC_NS_BIT | dynamic_ns_seq++;
+    }
+    for (iter = error_tables; iter != NULL; iter = iter->chain)
+    {
+        if (iter->namespace == table->namespace)
+            abort();
+    }
+
+    table->chain = error_tables;
+    error_tables = table;
+}
+
+#if DO_TESTS
+static const char *test_errfunc(int code)
+{
+    static const char *strings[] = {
+        "Test Error 3",
+        "Test Error 4",
+        "Test Error 5",
+    };
+    if (code < 3)
+        return NULL;
+    code -= 3;
+    if ((unsigned)code >= sizeof(strings) / sizeof(*strings))
+        return NULL;
+    return strings[code];
+}
+
+static const char *test_err_strings[] = {
+    "Test Error 0",
+    "Test Error 1",
+    "Test Error 2",
+};
+
+static tn_error_table_t *test_mk_error_table(const test_value_t *params)
+{
+    tn_error_table_t *table = TN_NEW(tn_error_table_t);
+
+    table->namespace = params[0].b ? 1 : TN_ERROR_NS_DYNAMIC;
+    table->errfunc   = params[1].b ? test_errfunc : NULL;
+    table->n_errs    = params[2].b ?
+        sizeof(test_err_strings) / sizeof(*test_err_strings) :
+        0;
+    table->errs      = params[2].b ? test_err_strings : NULL;
+    table->chain     = NULL;
+
+    return table;
+}
+
+TESTCASE(do_register, "Register error tables",
+         true, false, TCLASS(BUCKET0) | TCLASS(BUCKET1), 0,
+         values,
+         {
+             tn_error_table_t *et = test_mk_error_table(values);
+             unsigned ns = et->namespace;
+
+             tn_register_error_table(et);
+             
+             ASSERT(et->chain != NULL);
+             if (ns == TN_ERROR_NS_DYNAMIC)
+             {
+                 EXPECT(unsigned, TESTVAL(u, DYNAMIC_NS_BIT),
+                        TESTVAL(u, et->namespace));
+                 CLASSIFY(BUCKET0);
+             }
+             else
+             {
+                 EXPECT(unsigned, TESTVAL(u, ns), TESTVAL(u, et->namespace));
+                 CLASSIFY(BUCKET1);
+             }
+         },
+         &test_every_bool,
+         &test_every_bool,
+         &test_every_bool);
+
+TESTCASE(cannot_register_twice, "Cannot register the same table twice",
+         true, false, TCLASS(BUCKET0) | TCLASS(BUCKET1), 0,
+         values,
+         {
+             tn_error_table_t *et = test_mk_error_table(values + 1);
+             test_value_t sink;
+             test_value_t is_exit;
+             test_value_t termsig;
+
+             tn_register_error_table(et);
+             REDIRECT_STDERR(&sink,
+                             ISOLATED(&is_exit, &termsig,
+                                      {
+                                          tn_error_table_t *et2;
+
+                                          if (!values[0].b)
+                                              et2 = et;
+                                          else
+                                          {
+                                              et2 = TN_NEW(tn_error_table_t);
+                                              *et2 = *et;
+                                              et2->chain = NULL;
+                                          }
+                                          tn_register_error_table(et2);
+                                      }));
+             ASSERT(!is_exit.b);
+             EXPECT(int, termsig, TESTVAL(i, SIGABRT));
+             if (values[0].b)
+                 CLASSIFY(BUCKET0);
+             else
+                 CLASSIFY(BUCKET1);
+         },
+         &test_every_bool,
+         &test_every_bool,
+         &test_every_bool,
+         &test_every_bool);
+
+#endif
+
+const char *tn_error_string(tn_status status)
+{
+    tn_error_table_t *iter;
+    unsigned ns = TN_STATUS_NS(status);
+    const char *result = NULL;
+    
+    for (iter = error_tables; iter != NULL; iter = iter->chain)
+    {
+        if (iter->namespace == ns)
+        {
+            int code = TN_STATUS_CODE(status);
+
+            if (iter->errfunc)
+                result = iter->errfunc(code);
+            if (result == NULL && iter->errs != NULL &&
+                (unsigned)code < iter->n_errs)
+                result = iter->errs[code];
+            break;
+        }
+    }
+
+    return result;
+}
+
+#if DO_TESTS
+TESTCASE(system_errno, "
+#endif
+
 enum tn_severity tn_verbosity_level = TN_INFO;
+
+bool tn_interactive_report = true;
 
 static tn_status exception_code;
 static volatile sigjmp_buf *exception_handler;
 static char exception_details[256];
 static const char *exception_origin;
+static const char *exception_action;
 
-void
-tn_report_statusv(enum tn_severity severity, const char *module,
-                  tn_status status, const char *fmt, va_list args)
+void tn_report_statusv(enum tn_severity severity, const char *module,
+                       tn_status status, const char *action,
+                       const char *fmt, va_list args)
 {
+    static const int severity_map[] = {
+        MM_HALT,
+        MM_HALT,
+        MM_ERROR,
+        MM_WARNING,
+        MM_INFO,
+        MM_INFO,
+        MM_NOSEV
+    };
+    char msg_buf[256];
+
+    vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
+    
     if ((severity != TN_EXCEPTION || !exception_handler) &&
         severity <= tn_verbosity_level)
     {
-        com_err_va(module, status, fmt, args);
+        char tag_buf[128];
+        const char *errstr = tn_error_string(status);
+        
+        if (errstr != NULL)
+        {
+            snprintf(tag_buf, sizeof(tag_buf), "%s%s%s (%#x)",
+                     module ? module : "",
+                     module ? ": " : "", errstr, status);
+        }
+        else
+        {
+            snprintf(tag_buf, sizeof(tag_buf), "%s%s%#x",
+                     module ? module : "",
+                     module ? ": " : "",
+                     status);
+        }
+        if (fmtmsg(tn_interactive_report ? MM_PRINT : MM_CONSOLE,
+                   module, severity_map[severity],
+                   msg_buf, action, tag_buf) == MM_NOTOK)
+            abort();
     }
 
     switch (severity)
@@ -56,11 +256,12 @@ tn_report_statusv(enum tn_severity severity, const char *module,
             assert(status != 0);
             if (exception_handler)
             {
-                vsnprintf((char *)exception_details,
-                          sizeof(exception_details),
-                          fmt, args);
+                strncpy(exception_details, msg_buf,
+                        sizeof(exception_details) - 1);
                 exception_code = status;
                 exception_origin = module;
+                exception_action = action;
+
                 siglongjmp(*(sigjmp_buf *)exception_handler, 1);
             }
             /* fallthrough */
@@ -75,12 +276,12 @@ tn_report_statusv(enum tn_severity severity, const char *module,
 
 void
 tn_report_status(enum tn_severity severity, const char *module,
-                 tn_status status, const char *fmt, ...)
+                 tn_status status, const char *action, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
 
-    tn_report_statusv(severity, module, status, fmt, args);
+    tn_report_statusv(severity, module, status, action, fmt, args);
     
     va_end(args);
 }
@@ -91,7 +292,7 @@ tn_fatal_error(const char *module, tn_status status, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    tn_report_statusv(TN_FATAL, module, status, fmt, args);
+    tn_report_statusv(TN_FATAL, module, status, NULL, fmt, args);
     
     va_end(args);
     abort();
@@ -99,12 +300,12 @@ tn_fatal_error(const char *module, tn_status status, const char *fmt, ...)
 
 void
 tn_throw_exception(const char *module, tn_status status,
-                   const char *fmt, ...)
+                   const char *action, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
 
-    tn_report_statusv(TN_EXCEPTION, module, status, fmt, args);
+    tn_report_statusv(TN_EXCEPTION, module, status, action, fmt, args);
     
     va_end(args);
     abort();
@@ -112,33 +313,57 @@ tn_throw_exception(const char *module, tn_status status,
 
 #if DO_TESTS
 
-DEFINE_ENUM_ENUMERATOR(nonfatal_severity, enum tn_severity, i,
-                       TN_ERROR, TN_TRACE);
-DEFINE_DERIVED_GENERATOR(nonfatal_severity, int, TVCLASS(NORMAL), 0);
+DEFINE_ENUM_ENUMERATOR(tn_severity, enum tn_severity, i,
+                       TN_FATAL, TN_TRACE);
+DEFINE_DERIVED_GENERATOR(tn_severity, int);
 
-DEFINE_SEQ_ENUMERATOR(tn_status, tn_status, i, 0, EACCES, EINVAL);
-DEFINE_DERIVED_GENERATOR(tn_status, int, TVCLASS(NORMAL), 0);
-
+#define COMMA ,
 TESTCASE(report_error, "Report errors when severity level is high enough",
-         true, false, values,
+         true, false, TCLASS(BUCKET0) | TCLASS(BUCKET1), TCLASS(TRIVIAL), values,
          {
              test_value_t output;
+             enum tn_severity severity = (enum tn_severity)values[0].i;
+             static const char * const severity_pfx[] =
+                 {
+                     [TN_FATAL] = "HALT: " COMMA
+                     [TN_EXCEPTION] = "HALT: " COMMA
+                     [TN_ERROR] = "ERROR: " COMMA
+                     [TN_WARNING] = "WARNING: " COMMA
+                     [TN_NOTICE] = "INFO: " COMMA
+                     [TN_INFO] = "INFO: " COMMA
+                     [TN_TRACE] = "" COMMA
+                 };
+             
+             if (severity <= TN_EXCEPTION)
+                 CLASSIFY(TRIVIAL);
              REDIRECT_STDERR(&output,
                              {
-                                 tn_verbosity_level =
-                                     (enum tn_severity)values[0].i;
-                                 tn_report_status(
-                                         (enum tn_severity)values[0].i,
-                                         "test",
-                                         (tn_status)values[1].u, "<%s>",
+                                 tn_verbosity_level = severity -
+                                     (values[1].b ? 0 : 1);
+                                 TN_REPORT_STATUS(
+                                         severity,
+                                         ERANGE, NULL, "%s",
                                          values[2].s);
                              }
                  );
-             fprintf(stderr, "%s\n", output.s);
+             if (values[1].b)
+             {
+                 EXPECT_FMT(output, "%s:%s: %s%s\n%s:%s: %s (%#x)\n",
+                            THE_COMPONENT, THE_MODULE,
+                            severity_pfx[severity],
+                            values[2].s, THE_COMPONENT, THE_MODULE,
+                            strerror(ERANGE), ERANGE);
+                 CLASSIFY(BUCKET1);
+             }
+             else
+             {
+                 ASSERT(*output.s == '\0');
+                 CLASSIFY(BUCKET0);
+             }
          },
-         &test_every_nonfatal_severity,
-         &test_every_tn_status,
-         &test_every_alnums);
+         &test_every_tn_severity,
+         &test_every_bool,
+         &test_every_pstring);
 
 #if 0
 static void test_fatal_error(bool is_fatal)
@@ -187,15 +412,16 @@ tn_with_exception(tn_status (*action)(void *),
         if (handler)
         {
             tn_status rc = handler(data, exception_origin,
-                                   exception_code, exception_details);
+                                   exception_code, exception_action,
+                                   exception_details);
             if (rc == EAGAIN)
             {
-                char rethrow_details[256];
+                char rethrow_details[sizeof(exception_details)];
                 
                 strcpy(rethrow_details, exception_details);
                 exception_handler = previous_handler;
                 tn_throw_exception(exception_origin, exception_code,
-                                   "%s", rethrow_details);
+                                   exception_action, "%s", rethrow_details);
             }
             exception_code = rc;
         }

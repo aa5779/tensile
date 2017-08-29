@@ -2,6 +2,7 @@
  * @author Artem V. Andreev <artem@iling.spb.ru>
  */
 
+#define THE_MODULE "selftest"
 #include "check.h"
 
 TESTCASE(trivial, "Trivial test", true, false, TCLASS(NORMAL), 0, _,
@@ -28,7 +29,7 @@ TESTCASE(trivial_int_compare, "Trivial comparison of integers",
 
 TESTCASE(trivial_int_fail_compare, "Failed comparison of integers",
          true, false, TCLASS(NORMAL), 0, values,
-         { ASSERT(!test_compare_values(&test_every_int,
+         { ASSERT(!test_compare_values(__tc, &test_every_int,
                                        values[0],
                                        TESTVAL(i, values[0].i + 1))); },
          &test_every_int);
@@ -149,7 +150,7 @@ TESTCASE(test_stdout_redirect, "Redirect stdout", true, false,
                                      fflush(stdout);
                                  });
                  EXPECT(pstring, result, values[0]);
-                 ASSERT(fputs("<should be printed>", stdout) != EOF);
+                 ASSERT(fputs("<should be printed>\n", stdout) != EOF);
              }
          },
          &test_every_pstring);
@@ -173,9 +174,9 @@ TESTCASE(test_stdout_stderr_redirect, "Redirect stdout and stderr", true, false,
                                      fflush(stderr);
                                  }));
                  EXPECT(pstring, result1, values[0]);
-                 ASSERT(fputs("<should be printed>", stdout) != EOF);
+                 ASSERT(fputs("<should be printed>\n", stdout) != EOF);
                  EXPECT(pstring, result2, values[1]);
-                 ASSERT(fputs("<should be printed to stderr>", stderr) != EOF);
+                 ASSERT(fputs("<should be printed to stderr>\n", stderr) != EOF);
              }
          },
          &test_every_pstring, &test_every_pstring);
@@ -212,9 +213,10 @@ DEFINE_SEQ_ENUMERATOR(signal, int, i, SIGTERM, SIGKILL, SIGHUP,
                       SIGINT, SIGUSR1, SIGUSR2);
 DEFINE_TRIVIAL_COMPARE(signal, i);
 
-static void test_log_signal(test_value_t v)
+static NO_NULL_ARGS
+void test_log_signal(test_value_t v, test_log_buffer_t *dest)
 {
-    fputs(sys_siglist[v.i], stderr);
+    test_log_string_into(dest, sys_siglist[v.i]);
 }
 
 DEFINE_GENERATOR_RECORD(signal, signal, signal, signal);
@@ -248,3 +250,15 @@ TESTCASE(no_match, "Test NO_MATCH", true, false,
              NO_MATCH("[0-9]*", values[0]);
          },
          &test_every_alphas);
+
+TESTCASE(expect_fmt, "Test EXPECT_FMT", true, false,
+         TCLASS(NORMAL), 0, values,
+         {
+             char buf[128];
+             snprintf(buf, sizeof(buf), "Test %s.%d",
+                      values[0].s, (int)values[1].i);
+             EXPECT_FMT(TESTVAL(s, buf), "Test %s.%d",
+                        values[0].s, (int)values[1].i);
+         },
+         &test_every_string,
+         &test_every_int);

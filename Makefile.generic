@@ -62,7 +62,7 @@ TEST_CPPFLAGS =
 CFLAGS += $(PCRE_CFLAGS)
 
 LDFLAGS = -Wl,-export-dynamic
-LDLIBS = $(PCRE_LIBS) -lunistring -lgc -lm -ldl -lcom_err
+LDLIBS = $(PCRE_LIBS) -lunistring -lgc -lm -ldl
 MFLAGS = -MM -MT '$@ $(patsubst %.d,%.o,$@)'
 
 -include $(TOPDIR)/setup/$(PLATFORM_OS).mk

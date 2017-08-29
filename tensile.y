@@ -73,11 +73,18 @@ module:         declarations
                 ;
 
 declarations:           %empty
-        |       declarations declaration ';' 
+        |       declarations1 semicolon0
         ;
 
-declaration:    entity_decl
-        |       extern_decl
+declarations1:  declaration
+        |       declarations ';' declaration
+        ;
+
+declaration:    type_decl
+        |       const_decl
+        |       sig_decl
+        |       pipeline_decl
+        |       refinement
         |       import
         |       pragma
         ;
@@ -101,121 +108,73 @@ import_item:    TOK_ID
         |       TOK_ID '=' TOK_ID
         ;
 
-extern_decl:    TOK_EXTERN library_name extern_entity_decl
+type_decl:      TOK_TYPE TOK_ID type_decl_args inheritance '=' type_definition
         ;
 
+type_definition: TOK_ABSTRACT
+        |        extern_ref type_args0
+        ;
+
+const_decl:     TOK_CONST TOK_ID const_decl_args type_assert '=' const_expression
+        ;
+
+sig_decl:       TOK_SIG TOK_ID sig_decl_args '=' signature
+        ;
+
+pipeline_decl:  TOK_ID pipeline_decl_args sig_assert '=' pipeline_definition
+        ;
+
+pipeline_definition: TOK_ABSTRACT
+        |       expression
+        ;
+
+refinement:     TOK_REFINE TOK_ID pipeline_decl_args sig_assert '=' expression
+        ;
+
+extern_ref:     TOK_EXTERN library_name TOK_ID
+        ;
 
 library_name:   %empty
         |       TOK_STRING
         ;
 
-extern_entity_decl: object_decl
-        |       type_decl
-        ;
-
-entity_decl:     object_decl
-        |       TOK_STATIC object_decl
-        |       type_decl
-        |       struct_decl
-        |       union_decl
-        |       enum_decl
-        ;
-
-object_decl:    type_expression TOK_ID object_def0
-        ;
-
-object_def0:    %empty
-        |       initializer
-        |       function
-        ;
-
-initializer:    '=' expression
-        ;
-
-function:       '(' function_args ')' function_body0
-        ;
-
-function_args:  function_arg
-        |       function_args ',' function_arg
-        ;
-
-function_arg:   type_expression TOK_ID
-        ;
-
-function_body0: %empty
-        |       TOK_GENERIC '(' idlist ')'
-        |       block
-        ;
-
-type_decl:      TOK_TYPEDEF TOK_ID typedef0
-        ;
-
-typedef0:       %empty
-        |       typedef
-        ;
-
-typedef: '=' typedef_expression type_constraint
-        ;
-
-
-typedef_expression: type_expression
-        |       typedef_expression '&' TOK_ID
-        ;
-
-type_constraint: %empty
-        |       TOK_IF expression
-        ;
-
-struct_decl:    TOK_STRUCT TOK_ID compound_body
-        ;
-
-union_decl:     TOK_UNION TOK_ID compound_body
-        ;
-
-compound_body: %empty
-        |       '{' compound_fields '}'
-        ;
-
-compound_fields: compound_field
-        |      compound_fields compound_field ';' 
-        ;
-
-compound_field: type_expression TOK_ID
-        ;
-
-enum_decl:      TOK_ENUM TOK_ID enum_body
-        ;
-
-enum_body:      %empty
-        |       '{' idlist '}'
-        ;
-
-idlist:         TOK_ID
-        |       idlist ',' TOK_ID
-        ;
-
-
 type_expression: TOK_ID
-        | '(' type_expression ')'
+        |       '(' type_expression ')'
         |       type_expression '[' ']'
-        |       type_expression TOK_LDBRACKET TOK_RDBRACKET
+        |       type_expression '[' type_expression ']'
+        |       type_expression '+'
+        |       type_expression '^'                
         |       type_expression '*'
         |       type_expression '?'
         |       type_expression TOK_RANGE
-        |       type_expression TOK_MAP type_expression
         |       '*' type_expression
-        |       '^' type_expression
-        |       type_expression '^' type_expression
         |       '(' tuple_type ')'
-        |       type_expression '(' type_list ')'
+        |       type_expression type_args
         ;
 
 tuple_type:    type_expression ',' type_expression
         |       tuple_type ',' type_expression
         ;
 
-type_list:      type_expression
-        |       type_list ',' type_expression
+type_args0:     %empty
+        |       type_args
+        ;
+
+type_args:      '(' type_arg_list ')'
+        ;
+
+
+type_arg_list:  type_arg
+        |       type_arg_list ',' type_arg
+        ;
+
+type_arg:       TOK_TYPE named_arg0 type_expression
+        |       named_arg0 type_expression
+        |       TOK_CONST named_arg0 const_expression
+        ;
+
+named_arg0:     %empty
+        |       TOK_ID '='
         ;
 
 comparison:     TOK_EQ

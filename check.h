@@ -41,6 +41,7 @@ extern "C"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -57,6 +58,12 @@ extern "C"
 #include <math.h>
 #include <errno.h>
 #include "utils.h"
+
+#ifndef THE_MODULE
+#error "THE_MODULE should be defined"
+#endif
+
+#define TEST_LOG_PREFIX "check:" THE_MODULE
 
 static size_t test_max_samples = 100;
 static size_t test_min_iterations = 10;
@@ -92,7 +99,9 @@ typedef uint64_t test_class_set_t;
 
 typedef MUST_USE test_value_t (*test_enumerator_t)(void);
 
-typedef int (*test_logger_t)(test_value_t v, char *dest, size_t max);
+struct test_log_buffer_t;
+typedef NO_NULL_ARGS void (*test_logger_t)(test_value_t v,
+                                           struct test_log_buffer_t *buf);
 
 typedef bool (*test_comparator_t)(test_value_t v1, test_value_t v2);
 
@@ -102,14 +111,15 @@ typedef struct test_generator_t {
     test_comparator_t      compare;
 } test_generator_t;
 
+struct testcase_t;
 typedef NO_NULL_ARGS enum test_class_t (*test_property_t)(
-        const testcase_t *tc,
+        const struct testcase_t *tc,
         const test_value_t vals[]);
 
 typedef struct testcase_t {
-    const char                     *label;
+    const char                     *name;
     const char                     *title;
-    const char                     *reference;
+    const char                     *tag;
     bool                            enabled;
     bool                            expect_fail;
     const test_generator_t * const *params;
@@ -118,6 +128,13 @@ typedef struct testcase_t {
     test_class_set_t                allowed;
     struct testcase_t              *chain;
 } testcase_t;
+
+typedef struct test_log_buffer_t
+{
+    char  *data;
+    char  *wptr;
+    size_t space;
+} test_log_buffer_t;
 
 #define DEFINE_GENERATOR_RECORD(_name, _enumname, _logname, _comparename) \
     static UNUSED const test_generator_t test_every_##_name = {         \
@@ -135,9 +152,10 @@ typedef struct testcase_t {
     struct fake
 
 #define DEFINE_SIMPLE_GENERATOR(_name, _type, _tv, _fmt)                \
-    static int test_log_##_name(test_value_t v, char *buf, size_t max)  \
+    static NO_NULL_ARGS                                                 \
+    void test_log_##_name(test_value_t v, test_log_buffer_t *buf)       \
     {                                                                   \
-        return snprintf(buf, max, _fmt, (_type)v._tv);                  \
+        test_log_fmt_into(buf, _fmt, (_type)v._tv);                     \
     }                                                                   \
                                                                         \
     DEFINE_TRIVIAL_COMPARE(_name, _tv);                                 \
@@ -146,30 +164,50 @@ typedef struct testcase_t {
 #define DEFINE_DERIVED_GENERATOR(_name, _basename) \
     DEFINE_GENERATOR_RECORD(_name, _name, _basename, _basename)
 
-typedef struct test_log_buffer_t
+static inline NO_NULL_ARGS noreturn
+void test_fatal_error(const char *tag)
 {
-    char  *data;
-    size_t space;
-} test_log_buffer_t;
+    static_assert(sizeof(THE_MODULE) <= 15, "THE_MODULE is too long");
+    fmtmsg(MM_PRINT | MM_NRECOV, TEST_LOG_PREFIX, MM_HALT, strerror(errno),
+           MM_NULLACT, tag);
+    abort();
+}
 
-static NO_NULL_ARGS 
+#define __TEST_LOG_TAG_LINE(_tag, _line) _tag " @ " #_line
+#define TEST_LOG_TAG_LINE(_tag, _line) __TEST_LOG_TAG_LINE(_tag, _line)
+
+#define TEST_FATAL_ERROR(_cls)                                          \
+    test_fatal_error(TEST_LOG_TAG_LINE(TEST_LOG_PREFIX ":" _cls, __LINE__));
+
+static NO_NULL_ARGS LIKE_PRINTF(2, 3)
+void test_log_fmt_into(test_log_buffer_t *buffer, const char *fmt, ...)
+{
+    va_list args;
+    int written;
+
+    if (buffer->space == 0)
+        return;
+
+    va_start(args, fmt);
+    written = vsnprintf(buffer->wptr, buffer->space, fmt, args);
+    if (written < 0)
+    {
+        TEST_FATAL_ERROR("log");
+    }
+    if ((size_t)written >= buffer->space)
+        written = (int)buffer->space;
+    buffer->space -= (size_t)written;
+    buffer->wptr  += (size_t)written;
+
+    va_end(args);
+}
+
+static inline NO_NULL_ARGS
 void test_log_value_into(test_log_buffer_t *buffer,
                          const test_generator_t *gen,
                          test_value_t v)
 {
-    int written;
-    if (*buffer->space == 0)
-        return;
-    written = gen->log(v, buffer->data, buffer->space);
-    if (written < 0)
-    {
-        perror(__FUNCTION___);
-        abort();
-    }
-    if ((size_t)written >= buffer->space)
-        written = (size_t)buffer->space;
-    buffer->space -= (size_t)written;
-    buffer->data  += (size_t)written;
+    gen->log(v, buffer);
 }
 
 static NO_NULL_ARGS
@@ -182,19 +220,48 @@ void test_log_string_into(test_log_buffer_t *buffer, const char *str)
         size_t l = strlen(str);
         
         if (l > buffer->space)
-            l = *len;
-        memcpy(*buf, str, l);
-        *len -= l;
-        *buf += l;
+            l = buffer->space;
+        memcpy(buffer->wptr, str, l);
+        buffer->space -= l;
+        buffer->wptr += l;
     }
 }
 
 static inline NO_NULL_ARGS
-void test_log_with_testcase(const testcase_t *tc, int severity,
-                            const char *msg)
+void test_log_char_into(test_log_buffer_t *buffer, char ch)
 {
-    if (fmtmsg(MM_PRINT, tc->label, severity, msg, MM_NULLACT,
-               tc->reference) != MM_OK)
+    if (buffer->space == 0)
+        return;
+
+    *buffer->wptr++ = ch;
+    buffer->space--;
+}
+
+#define TEST_LOG_BUF_SIZE 256
+static inline MUST_USE
+test_log_buffer_t test_log_new(void)
+{
+    char *buf = tn_alloc_blob(TEST_LOG_BUF_SIZE);
+
+    return (test_log_buffer_t){.data = buf, .wptr = buf,
+            .space = TEST_LOG_BUF_SIZE - 1};
+}
+
+static inline NO_NULL_ARGS
+void test_log_reset(test_log_buffer_t *buf)
+{
+    buf->wptr = buf->data;
+    buf->space = TEST_LOG_BUF_SIZE - 1;
+    memset(buf->data, '\0', TEST_LOG_BUF_SIZE);
+}
+
+
+static inline NO_NULL_ARGS
+void test_send_log_msg(const testcase_t *tc, int severity, const char *msg)
+{
+    static_assert(sizeof(THE_MODULE) <= 15, "THE_MODULE is too long");
+    if (fmtmsg(MM_PRINT, TEST_LOG_PREFIX, severity, msg, MM_NULLACT,
+               tc->tag) != MM_OK)
         abort();
 }
 
@@ -206,12 +273,13 @@ bool test_compare_values(const testcase_t *tc,
 {
     if (!gen->compare(v1, v2))
     {
-        test_log_string
-        fputs("Expected ", stderr);
-        gen->log(v1);
-        fputs(" but got ", stderr);
-        gen->log(v2);
-        fputs("\n", stderr);
+        test_log_buffer_t buf = test_log_new();
+
+        test_log_string_into(&buf, "Expected ");
+        test_log_value_into(&buf, gen, v1);
+        test_log_string_into(&buf, " but got ");
+        test_log_value_into(&buf, gen, v2);
+        test_send_log_msg(tc, MM_ERROR, buf.data);
         return false;
     }
     return true;
@@ -227,33 +295,74 @@ void test_make_random_bytes(void *buf, size_t n)
 }
 
 static inline NO_NULL_ARGS
-void test_print_hex(void *buf, size_t n)
+void test_print_hex_into(test_log_buffer_t *dest,
+                         void *buf, size_t n)
 {
     size_t i;
 
     for (i = 0; i < n; i++)
     {
-        fprintf(stderr, "%s%02x", i == 0 ? "" : ":",
-                ((uint8_t *)buf)[i]);
+        test_log_fmt_into(dest, "%s%02x", i == 0 ? "" : ":",
+                          ((uint8_t *)buf)[i]);
     }
 }
 
 static inline NO_NULL_ARGS
-void test_print_chars(const char *s)
+void test_print_chars_into(test_log_buffer_t *dest, const char *s)
 {
     size_t i;
 
     for (i = 0; s[i] != '\0'; i++)
     {
         if (isprint(s[i]))
-            fputc(s[i], stderr);
+            test_log_char_into(dest, s[i]);
         else
-            fprintf(stderr, "\\x%02x", s[i]);
+        {
+            switch (s[i])
+            {
+                case '\n':
+                    test_log_string_into(dest, "\\n");
+                    break;
+                case '\r':
+                    test_log_string_into(dest, "\\r");
+                    break;
+                case '\t':
+                    test_log_string_into(dest, "\\t");
+                    break;
+                default:
+                    test_log_fmt_into(dest, "\\x%02x", s[i]);
+                    break;
+            }
+        }
     }
 }
 
 static inline
-void test_print_class_set(test_class_set_t set)
+const char *test_class_name(unsigned clsid)
+{
+    switch (clsid)
+    {
+        case TCLASS_NORMAL:
+            return "NORMAL";
+        case TCLASS_TRIVIAL:
+            return "TRIVIAL";
+        case TCLASS_SPECIAL:
+            return "SPECIAL";
+        case TCLASS_BUCKET0:
+            return "BUCKET0";
+        case TCLASS_BUCKET1:
+            return "BUCKET1";
+        case TCLASS_BUCKET2:
+            return "BUCKET2";
+        case TCLASS_BUCKET3:
+            return "BUCKET3";
+        default:
+            return NULL;
+    }
+}
+
+static inline
+void test_print_class_set_into(test_log_buffer_t *dest, test_class_set_t set)
 {
     bool need_comma = false;
     unsigned i;
@@ -262,7 +371,11 @@ void test_print_class_set(test_class_set_t set)
     {
         if (set & (1ull << i))
         {
-            fprintf(stderr, "%s%u", need_comma ? "," : "", i);
+            const char *name = test_class_name(i);
+            if (name != NULL)
+                test_log_fmt_into(dest, "%s%s", need_comma ? "," : "", name);
+            else
+                test_log_fmt_into(dest, "%s%u", need_comma ? "," : "", i);
             need_comma = true;
         }
     }
@@ -376,11 +489,12 @@ test_value_t test_string_enumerate(test_enumerator_t elt_enum)
     struct fake
 
 #define DEFINE_STRING_GENERATOR(_name)                                  \
-    static void test_log_##_name(test_value_t v)                        \
+    static NO_NULL_ARGS                                                 \
+    void test_log_##_name(test_value_t v, test_log_buffer_t *buf)       \
     {                                                                   \
-        fputc('\"', stderr);                                            \
-        test_print_chars(v.s);                                          \
-        fputc('\"', stderr);                                            \
+        test_log_char_into(buf, '\"');                                  \
+        test_print_chars_into(buf, v.s);                                \
+        test_log_char_into(buf, '\"');                                  \
     }                                                                   \
                                                                         \
     static NO_SHARED_STATE                                              \
@@ -393,10 +507,11 @@ test_value_t test_string_enumerate(test_enumerator_t elt_enum)
 
 
 #define DEFINE_BLOB_GENERATOR(_name, _type, _var, _sizeexpr, _dataexpr) \
-    static void test_log_##_name(test_value_t v)                        \
+    static NO_NULL_ARGS                                                 \
+    void test_log_##_name(test_value_t v, test_log_buffer_t *buf)       \
     {                                                                   \
         const _type *_var = v.p;                                        \
-        test_print_hex(_dataexpr, _sizeexpr);                           \
+        test_print_hex_into(_dataexpr, _sizeexpr, buf);                 \
     }                                                                   \
                                                                         \
     static NO_SHARED_STATE                                              \
@@ -439,29 +554,6 @@ unsigned testcase_count_params(const testcase_t *tc)
 static unsigned testcase_n_run;
 static unsigned testcase_n_ok;
 
-static inline NO_SIDE_EFFECTS MUST_USE
-size_t testcase_n_samples_per_param(unsigned n)
-{
-    return (size_t)pow((double)test_max_samples, 1.0 / n);
-}
-
-static NO_NULL_ARGS
-void testcase_step_all_params(test_value_t *params,
-                              const test_generator_t * const *gens,
-                              size_t i, size_t n_params, size_t limit)
-{
-    size_t p;
-    size_t divisor = 1;
-
-    for (p = n_params; p > 0; p--, divisor *= limit)
-    {
-        if (i % divisor != 0)
-            break;
-
-        params[p - 1] = gens[p - 1]->enumerate();
-    }
-}
-
 static NO_NULL_ARGS MUST_USE
 test_class_set_t testcase_run_variation(const testcase_t *tc,
                                         const test_value_t *params)
@@ -472,8 +564,7 @@ test_class_set_t testcase_run_variation(const testcase_t *tc,
     child = fork();
     if (child == (pid_t)(-1))
     {
-        perror("fork");
-        abort();
+        TEST_FATAL_ERROR("fork");
     }
     if (child == 0)
     {
@@ -482,24 +573,21 @@ test_class_set_t testcase_run_variation(const testcase_t *tc,
                           &(struct rlimit){.rlim_cur = 0,
                                   .rlim_max = 0}) != 0)
             {
-                perror("setrlimit(RLIMIT_CORE)");
-                abort();
+                TEST_FATAL_ERROR("setrlimit(RLIMIT_CORE)");
             }
         }
         if (setrlimit(RLIMIT_CPU,
                       &(struct rlimit){.rlim_cur = test_timeout,
                               .rlim_max = test_timeout + 1}) != 0)
         {
-            perror("setrlimit(RLIMIT_CPU)");
-            abort();
+            TEST_FATAL_ERROR("setrlimit(RLIMIT_CPU)");
         }
-        exit((int)tc->property(params));
+        exit((int)tc->property(tc, params));
     }
 
     if (waitpid(child, &status, 0) != child)
     {
-        perror("waitpid");
-        abort();
+        TEST_FATAL_ERROR("waitpid");
     }
 
     if (tc->expect_fail)
@@ -515,65 +603,77 @@ void testcase_run(const testcase_t *tc)
     test_value_t params[n_params];
     unsigned i;
     unsigned p;
-    size_t n_samples = testcase_n_samples_per_param(n_params);
     test_class_set_t observed = 0;
+    test_log_buffer_t param_buf = test_log_new();
 
     memset(params, 0, sizeof(params));
 
-    fmtmsg(MM_PRINT, MM_INFO, tc->title);
+    test_send_log_msg(tc, MM_INFO, tc->title);
     if (!tc->enabled)
     {
-        fputs("SKIP\n", stderr);
+        test_send_log_msg(tc, MM_WARNING, "SKIP");
         return;
     }
     if (tc->property == NULL)
     {
-        fputs("UNTESTED\n", stderr);
+        test_send_log_msg(tc, MM_WARNING, "UNTESTED");
         return;
     }
     testcase_n_run++;
 
+    for (p = 0; p < n_params; p++)
+        params[p] = tc->params[p]->enumerate();
+    
     for (i = 0; i < test_max_samples &&
              ((observed & tc->required) != tc->required ||
               i < test_min_iterations); i++)
     {
         test_class_set_t result;
-        
-        testcase_step_all_params(params, tc->params, i, n_params, n_samples);
-        fputc('[', stderr);
+
+        test_log_reset(&param_buf);
+        p = (unsigned)rand() % n_params;
+        params[p] = tc->params[p]->enumerate();
+
+        test_log_char_into(&param_buf, '[');
         for (p = 0; p < n_params; p++)
         {
             if (p > 0)
-                fputc(',', stderr);
-            tc->params[p]->log(params[p]);
+                test_log_char_into(&param_buf, ',');
+            tc->params[p]->log(params[p], &param_buf);
         }
-        fputc(']', stderr);
-        fflush(stderr);
+        test_log_char_into(&param_buf, ']');
+        test_send_log_msg(tc, MM_NOSEV, param_buf.data);
 
         result = testcase_run_variation(tc, params);
         if (result == 0)
         {
-            fputs("FAIL\n", stderr);
+            test_send_log_msg(tc, MM_ERROR, "FAIL");
             return;
         }
         if (result & ~(tc->allowed | tc->required))
         {
-            fputs("\tWarning: unexpected test classes were observed: ",
-                  stderr);
-            test_print_class_set(result & ~(tc->allowed | tc->required));
-            fputc('\n', stderr);
+            test_log_reset(&param_buf);
+            test_log_string_into(&param_buf,
+                                 "Unexpected test classes were observed:");
+            test_print_class_set_into(&param_buf, result & ~(tc->allowed |
+                                                             tc->required));
+            test_send_log_msg(tc, MM_WARNING, param_buf.data);
         }
+        test_log_reset(&param_buf);
+        test_print_class_set_into(&param_buf, result);
+        test_send_log_msg(tc, MM_NOSEV, param_buf.data);
         observed |= result;
     }
     testcase_n_ok++;
-    fputs("OK\n", stderr);
+    test_send_log_msg(tc, MM_INFO, "OK");
 
     if ((tc->required & observed) != tc->required)
     {
-        fputs("\tWarning: some required test classes were not observed: ",
-              stderr);
-        test_print_class_set(tc->required & ~observed);
-        fputc('\n', stderr);
+        test_log_reset(&param_buf);
+        test_log_string_into(&param_buf,
+                                 "Required test classes were not observed:");
+        test_print_class_set_into(&param_buf, tc->required & ~observed);
+        test_send_log_msg(tc, MM_WARNING, param_buf.data);
     }
 }
 
@@ -582,20 +682,29 @@ void testcase_run(const testcase_t *tc)
     {                                                                   \
         if (!(_expr))                                                   \
         {                                                               \
-            fprintf(stderr, "%s:%d: Assertion " #_expr                  \
-                    " failed in %s()\n",                                \
-                    __FILE__, __LINE__, __FUNCTION__);                  \
+            test_send_log_msg(__tc, MM_ERROR,                           \
+                              TEST_LOG_TAG_LINE("Assertion "            \
+                                                #_expr " failed",       \
+                                                __LINE__));             \
             raise(SIGTRAP);                                             \
         }                                                               \
     } while (0)
 
 #define INVARIANT(_expr) ASSERT(_expr)
 
-#define EXPECT(_gen, _v1, _v2)                                  \
-    do                                                          \
-    {                                                           \
-        if (!test_compare_values(&test_every_##_gen, _v1, _v2)) \
-            raise(SIGTRAP);                                     \
+#define EXPECT(_gen, _v1, _v2)                                          \
+    do                                                                  \
+    {                                                                   \
+        if (!test_compare_values(__tc, &test_every_##_gen, _v1, _v2))   \
+            raise(SIGTRAP);                                             \
+    } while (0)
+
+#define EXPECT_FMT(_v, _fmt, ...)                           \
+    do                                                      \
+    {                                                       \
+        char __buf[256];                                    \
+        snprintf(__buf, sizeof(__buf), _fmt, __VA_ARGS__);  \
+        EXPECT(string, TESTVAL(s, __buf), _v);              \
     } while (0)
 
 #define MATCH(_pattern, _v)                     \
@@ -605,33 +714,37 @@ void testcase_run(const testcase_t *tc)
 
 #define CLASSIFY(_class) return TCLASS_##_class
 
-#define ISOLATED(_isexitp, _statusp, _code)         \
-    do {                                            \
-        int status;                                 \
-        pid_t child = fork();                       \
-                                                    \
-        if (child == (pid_t)-1)                     \
-        {                                           \
-            perror("fork");                         \
-            abort();                                \
-        }                                           \
-        else if (child == 0)                        \
-        {                                           \
-            _code;                                  \
-            exit(0);                                \
-        }                                           \
-        else                                        \
-        {                                           \
-            if (waitpid(child, &status, 0) != child)    \
-            {                                       \
-                perror("waitpid");                  \
-                abort();                            \
-            }                                       \
-            (_isexitp)->b = WIFEXITED(status);      \
-            (_statusp)->i = WIFEXITED(status) ?     \
-                WEXITSTATUS(status) :               \
-                WTERMSIG(status);                   \
-        }                                           \
+#define ISOLATED(_isexitp, _statusp, _code)                 \
+    do {                                                    \
+    int status;                                             \
+        pid_t child = fork();                               \
+                                                            \
+        if (child == (pid_t)-1)                             \
+        {                                                   \
+            TEST_FATAL_ERROR("fork");                       \
+        }                                                   \
+        else if (child == 0)                                \
+        {                                                   \
+            if (setrlimit(RLIMIT_CORE,                      \
+                          &(struct rlimit){.rlim_cur = 0,   \
+                                  .rlim_max = 0}) != 0)     \
+            {                                               \
+                TEST_FATAL_ERROR("setrlimit(RLIMIT_CORE)"); \
+            }                                               \
+            _code;                                          \
+            exit(0);                                        \
+        }                                                   \
+        else                                                \
+        {                                                   \
+            if (waitpid(child, &status, 0) != child)        \
+            {                                               \
+                TEST_FATAL_ERROR("waitpid");                \
+            }                                               \
+            (_isexitp)->b = WIFEXITED(status);              \
+            (_statusp)->i = WIFEXITED(status) ?             \
+                WEXITSTATUS(status) :                       \
+                WTERMSIG(status);                           \
+        }                                                   \
     } while (0)
 
 static UNUSED NO_NULL_ARGS
@@ -642,39 +755,33 @@ void test_redirect_output(int target_fd, int *saved_fd, int *read_fd)
     *saved_fd = dup(target_fd);
     if (*saved_fd < 0)
     {
-        perror("dup");
-        abort();
+        TEST_FATAL_ERROR("dup");
     }
     if (pipe(pipe_fds) != 0)
     {
-        perror("pipe");
-        abort();
+        TEST_FATAL_ERROR("pipe");
     }
     if (dup2(pipe_fds[1], target_fd) != target_fd)
     {
-        perror("dup2");
-        abort();
+        TEST_FATAL_ERROR("dup2");
     }
     *read_fd = pipe_fds[0];
     if (close(pipe_fds[1]) != 0)
     {
-        perror("close");
-        abort();
+        TEST_FATAL_ERROR("close");
     }
 }
 
 static NO_NULL_ARGS
-void test_end_redirect(int target_fd, int saved_fd, int read_fd)
+void test_end_redirect(int target_fd, int saved_fd)
 {
     if (dup2(saved_fd, target_fd) != target_fd)
     {
-        perror("dup2");
-        abort();
+        TEST_FATAL_ERROR("dup2");
     }
-    if (close(saved_fd) != 0 || (read_fd >= 0 && close(read_fd) != 0))
+    if (close(saved_fd) != 0)
     {
-        perror("close");
-        abort();
+        TEST_FATAL_ERROR("close");
     }
 }
 
@@ -684,15 +791,18 @@ void test_read_redirected(int target_fd, int read_fd, int saved_fd, test_value_t
     static char test_iobuf[4096];
     ssize_t len;
 
+    test_end_redirect(target_fd, saved_fd);
     len = read(read_fd, test_iobuf, sizeof(test_iobuf) - 1);
     if (len < 0)
     {
-        perror("read");
-        abort();
+        TEST_FATAL_ERROR("read");
     }
     test_iobuf[len] = '\0';
     dest->s = tn_cstrdup(test_iobuf);
-    test_end_redirect(target_fd, saved_fd, read_fd);
+    if (close(read_fd) != 0)
+    {
+        TEST_FATAL_ERROR("close");
+    }
 }
 
 #define REDIRECT_OUTPUT_FD(_fd, _valuep, _code)                         \
@@ -721,33 +831,27 @@ void test_redirect_input(int target_fd, int *saved_fd, test_value_t src)
     *saved_fd = dup(target_fd);
     if (*saved_fd < 0)
     {
-        perror("dup");
-        abort();
+        TEST_FATAL_ERROR("dup");
     }
     if (pipe(pipe_fds) != 0)
     {
-        perror("pipe");
-        abort();
+        TEST_FATAL_ERROR("pipe");
     }
     if (dup2(pipe_fds[0], target_fd) != target_fd)
     {
-        perror("dup2");
-        abort();
+        TEST_FATAL_ERROR("dup2");
     }
     if (close(pipe_fds[0]) != 0)
     {
-        perror("close");
-        abort();
+        TEST_FATAL_ERROR("close");
     }
     if (write(pipe_fds[1], src.s, (size_t)len) != len)
     {
-        perror("write");
-        abort();
+        TEST_FATAL_ERROR("write");
     }
     if (close(pipe_fds[1]) != 0)
     {
-        perror("close");
-        abort();
+        TEST_FATAL_ERROR("close");
     }
 }
 
@@ -756,16 +860,16 @@ void test_redirect_input(int target_fd, int *saved_fd, test_value_t src)
         int saved_stdin;                                        \
         test_redirect_input(STDIN_FILENO, &saved_stdin, _src);  \
         _code;                                                  \
-        test_end_redirect(STDIN_FILENO, saved_stdin, -1);       \
+        test_end_redirect(STDIN_FILENO, saved_stdin);           \
     } while (0)
 
 static testcase_t *test_case_first;
 static UNUSED testcase_t **test_case_last = &test_case_first;
 
-#define TESTCASE(_name, _title, _refid, _enabled, _expect_fail,         \
+#define TESTCASE(_name, _title, _enabled, _expect_fail,                 \
                  _required, _allowed, _values, _body, ...)              \
     static enum test_class_t test_property_##_name(                     \
-            UNUSED const testcase_t *__testcase,                        \
+            UNUSED const testcase_t *__tc,                              \
             UNUSED const test_value_t _values[])                        \
     {                                                                   \
         _body;                                                          \
@@ -774,9 +878,9 @@ static UNUSED testcase_t **test_case_last = &test_case_first;
                                                                         \
     static testcase_t test_case_##_name =                               \
     {                                                                   \
-        .label      = (const char[10 + 1 + 14 + 1]){THE_MODULE ":" #_name}, \
-        .title      = _title,                                           \
-        .reference  = THE_MODULE ":" #_name ":" #_refid                 \
+        .name        = #_name,                                          \
+        .title       = _title,                                          \
+        .tag         = TEST_LOG_PREFIX ":" #_name,                      \
         .enabled     = _enabled,                                        \
         .expect_fail = _expect_fail,                                    \
         .params      = (const test_generator_t *[]){                    \
@@ -890,9 +994,9 @@ DEFINE_DERIVED_GENERATOR(qword_bit, unsigned);
 
 DEFINE_SEQ_ENUMERATOR(bool, bool, b, false, true);
 
-static void test_log_bool(test_value_t v)
+static void test_log_bool(test_value_t v, test_log_buffer_t *buf)
 {
-    fprintf(stderr, "%s", v.b ? "true" : "false");
+    test_log_string_into(buf, v.b ? "true" : "false");
 }
 
 DEFINE_TRIVIAL_COMPARE(bool, b);
@@ -910,14 +1014,14 @@ DEFINE_RANGE_ENUMERATOR(char, char, ch,
                         {'{', '~'},
                         {'\x7F', '\x7F'});
 
-static void test_log_char(test_value_t v)
+static void test_log_char(test_value_t v, test_log_buffer_t *buf)
 {
     char c = (char)v.ch;
 
     if (isprint(c))
-        fprintf(stderr, "'%c'", c);
+        test_log_fmt_into(buf, "'%c'", c);
     else
-        fprintf(stderr, "'\\x%02x'", c);
+        test_log_fmt_into(buf, "'\\x%02x'", c);
 }
 
 DEFINE_TRIVIAL_COMPARE(char, ch);
@@ -964,14 +1068,15 @@ DEFINE_RANGE_ENUMERATOR(wchar_t, wchar_t, ch,
                         {0x00200000, 0x03FFFFFF},
                         {0x04000000, 0x7FFFFFFF});
 
-static void test_log_wchar_t(test_value_t v)
+static NO_NULL_ARGS
+void test_log_wchar_t(test_value_t v, test_log_buffer_t *buf)
 {
     wchar_t c = v.ch;
 
     if (iswprint((wint_t)c))
-        fprintf(stderr, "'%lc' (U+%08x)", c, c);
+        test_log_fmt_into(buf, "'%lc' (U+%08x)", c, c);
     else
-        fprintf(stderr, "U+%08x", c);
+        test_log_fmt_into(buf, "U+%08x", c);
 }
 
 DEFINE_TRIVIAL_COMPARE(wchar_t, ch);
@@ -1034,6 +1139,7 @@ int main(int argc, char *argv[])
     const testcase_t *cases;
     int i;
     bool all_cases = true;
+    char msg_buf[256];
 
     GC_INIT();
     for (i = 1; i < argc; i++)
@@ -1051,8 +1157,12 @@ int main(int argc, char *argv[])
 
         if (all_cases)
         {
-            for (found = test_case_first; found != NULL; found = found->chain)
+            for (found = test_case_first;
+                 found != NULL;
+                 found = found->chain)
+            {
                 found->enabled = false;
+            }
             all_cases = false;
         }
         for (found = test_case_first; found != NULL; found = found->chain)
@@ -1065,7 +1175,10 @@ int main(int argc, char *argv[])
         }
         if (found == NULL)
         {
-            fprintf(stderr, "Unknown option or test case '%s'\n", argv[i]);
+            snprintf(msg_buf, sizeof(msg_buf),
+                     "Unknown option or test case '%s'\n", argv[i]);
+            fmtmsg(MM_PRINT,TEST_LOG_PREFIX, MM_HALT,
+                   msg_buf, MM_NULLACT, TEST_LOG_PREFIX ":main");
             return EXIT_FAILURE;
         }
     }
@@ -1079,8 +1192,11 @@ int main(int argc, char *argv[])
         testcase_run(cases);
     }
 
-    fprintf(stderr, "%u cases run, %u succeded, random seed was %u\n",
-            testcase_n_run, testcase_n_ok, seed);
+    snprintf(msg_buf, sizeof(msg_buf),
+             "%u cases run, %u succeded, random seed was %u",
+             testcase_n_run, testcase_n_ok, seed);
+    fmtmsg(MM_PRINT, TEST_LOG_PREFIX, MM_INFO,
+           msg_buf, MM_NULLACT, TEST_LOG_PREFIX ":main");
     return testcase_n_run == testcase_n_ok ? 0 : EXIT_FAILURE;
 }
 
@@ -1096,4 +1212,3 @@ int main(int argc, char *argv[])
 }
 #endif /* __cplusplus */
 #endif /* CHECK_H */
-nashatanya
