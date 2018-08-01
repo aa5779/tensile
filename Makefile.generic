@@ -51,7 +51,7 @@ PCRE_LIBS := $(shell $(PCRE_CONFIG) --libs)
 PLATFORM_ARCH_SYMBOL := $(subst :,_,$(subst .,_,$(subst -,_,$(subst +,_,$(PLATFORM_ARCH)))))
 PLATFORM_OS_SYMBOL := $(subst :,_,$(subst .,_,$(subst -,_,$(subst +,_,$(PLATFORM_OS)))))
 
-CPPFLAGS = -I. -I$(TOPDIR) -DPLATFORM_ARCH=\"$(PLATFORM_ARCH)\" -DPLATFORM_OS=\"$(PLATFORM_OS)\" -DPLATFORM_VARIANT=\"$(PLATFORM_VARIANT)\"
+CPPFLAGS = -I. -I$(TOPDIR) -I$(TOPDIR)/lib -DPLATFORM_ARCH=\"$(PLATFORM_ARCH)\" -DPLATFORM_OS=\"$(PLATFORM_OS)\" -DPLATFORM_VARIANT=\"$(PLATFORM_VARIANT)\"
 CPPFLAGS += -DPLATFORM_ARCH_IS_$(PLATFORM_ARCH_SYMBOL)=1 -DPLATFORM_OS_IS_$(PLATFORM_OS_SYMBOL)=1
 ifneq ($(PLATFORM_VARIANT),)
 CPPFLAGS += -DPLATFORM_VARIANT_IS_$(PLATFORM_VARIANT)=1
@@ -77,14 +77,14 @@ endif
 
 .SECONDARY :
 
-C_SOURCES = status.c # dstring.c xdr.c
+C_SOURCES = lib/status.c # lib/dstring.c lib/xdr.c
 
 GENERATED_SOURCES = # tensile.tab.c lex.yy.c
 
 SOURCES = $(C_SOURCES)
 SOURCES += $(GENERATED_SOURCES)
 
-TESTABLES = selftest status # xdr dstring
+TESTABLES = selftest lib/status # xdr dstring
 
 APPLICATION = tensilec
 
@@ -174,10 +174,10 @@ clean :
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
 %.d : %.c | $(GENERATED_SOURCES)
-	@set -e; $(RM) $@; \
+	@set -e; $(RM) $@; mkdir -p $(dir $@); \
 	$(CC) $(MFLAGS) $(CPPFLAGS) $< > $@
 
 tests/%_ts.d : %.c
-	@set -e; $(RM) $@; \
+	@set -e; $(RM) $@; mkdir -p $(dir $@); \
 	$(CC) $(MFLAGS) $(CPPFLAGS) $< > $@
 
