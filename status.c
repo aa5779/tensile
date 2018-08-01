@@ -195,7 +195,25 @@ const char *tn_error_string(tn_status status)
 }
 
 #if DO_TESTS
-TESTCASE(system_errno, "
+TESTCASE(system_errno, "System errno is correct", true, false,
+         TCLASS(NORMAL), 0, values,
+         {
+             int err = (int)(values[0].u % 78 + 1);
+             test_value_t s1 = {.s = strerror(err) };
+             test_value_t s2 = {.s = tn_error_string((tn_status)err) };
+             ASSERT(s2.s != NULL);
+             EXPECT(string, s1, s2);
+         },
+         &test_every_uint8_t);
+
+TESTCASE(unknown_status, "Unknown status reported as NULL", true, false,
+         TCLASS(NORMAL), 0, values,
+         {
+             ASSERT(tn_error_string(TN_STATUS(values[0].u + 1,
+                                              values[1].u)) == NULL);
+         },
+         &test_every_uint8_t,
+         &test_every_uint8_t);
 #endif
 
 enum tn_severity tn_verbosity_level = TN_INFO;

@@ -262,3 +262,26 @@ TESTCASE(expect_fmt, "Test EXPECT_FMT", true, false,
          },
          &test_every_string,
          &test_every_int);
+
+typedef struct test_blob_t {
+    uint8_t bytes[16];
+} test_blob_t;
+
+static MUST_USE
+test_value_t test_enum_test_blob_t(void)
+{
+    test_blob_t *blob = tn_alloc_blob(sizeof(*blob));
+    test_make_random_bytes(blob->bytes, sizeof(blob->bytes));
+
+    return TESTVAL(p, blob);
+}
+
+DEFINE_BLOB_GENERATOR(test_blob_t, test_blob_t, x,
+                      sizeof(x->bytes), x->bytes);
+
+TESTCASE(iterate_blob, "Test blob generation", true, false,
+         TCLASS(NORMAL), 0, values,
+         {
+             EXPECT(test_blob_t, values[0], values[0]);
+         },
+         &test_every_test_blob_t);

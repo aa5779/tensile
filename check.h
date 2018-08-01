@@ -296,7 +296,7 @@ void test_make_random_bytes(void *buf, size_t n)
 
 static inline NO_NULL_ARGS
 void test_print_hex_into(test_log_buffer_t *dest,
-                         void *buf, size_t n)
+                         const void *buf, size_t n)
 {
     size_t i;
 
@@ -504,22 +504,20 @@ test_value_t test_string_enumerate(test_enumerator_t elt_enum)
     }                                                                   \
     DEFINE_GENERATOR_RECORD(_name, _name, _name, _name)                 \
 
-
-
 #define DEFINE_BLOB_GENERATOR(_name, _type, _var, _sizeexpr, _dataexpr) \
     static NO_NULL_ARGS                                                 \
     void test_log_##_name(test_value_t v, test_log_buffer_t *buf)       \
     {                                                                   \
         const _type *_var = v.p;                                        \
-        test_print_hex_into(_dataexpr, _sizeexpr, buf);                 \
+        test_print_hex_into(buf, _dataexpr, _sizeexpr);                 \
     }                                                                   \
                                                                         \
     static NO_SHARED_STATE                                              \
     bool test_compare_##_name(test_value_t v1, test_value_t v2)         \
     {                                                                   \
-        void *v1_buf;                                                   \
+        const void *v1_buf;                                             \
         size_t v1_len;                                                  \
-        void *v2_buf;                                                   \
+        const void *v2_buf;                                             \
         size_t v2_len;                                                  \
         {                                                               \
             const _type *_var = v1.p;                                   \

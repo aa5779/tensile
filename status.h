@@ -62,7 +62,7 @@ typedef struct tn_error_table_t {
 
 #define TN_ERROR_NS_DYNAMIC ((unsigned)(~0))
 
-#define TN_STATUS(_ns, _code) (((_ns) << 16) | (_code))
+#define TN_STATUS(_ns, _code) (((tn_status)(_ns) << 16) | (tn_status)(_code))
 
 #define TN_STATUS_NS(_status) (((_status) >> 16) & 0xffffu)
 #define TN_STATUS_CODE(_status) ((int)((_status) & 0xffffu))
