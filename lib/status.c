@@ -20,7 +20,6 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **********************************************************************/
-
 /** @file
  * @author Artem V. Andreev <artem@iling.spb.ru>
  */
@@ -34,7 +33,7 @@
 #define THE_COMPONENT "library"
 #define THE_MODULE "status"
 #include "status.h"
-#include "check.h"
+#include "testing.h"
 
 static tn_error_table_t sys_error_table = {
     .namespace = 0,
@@ -67,108 +66,6 @@ void tn_register_error_table(tn_error_table_t *table)
     table->chain = error_tables;
     error_tables = table;
 }
-
-#if DO_TESTS
-static const char *test_errfunc(int code)
-{
-    static const char *strings[] = {
-        "Test Error 3",
-        "Test Error 4",
-        "Test Error 5",
-    };
-    if (code < 3)
-        return NULL;
-    code -= 3;
-    if ((unsigned)code >= sizeof(strings) / sizeof(*strings))
-        return NULL;
-    return strings[code];
-}
-
-static const char *test_err_strings[] = {
-    "Test Error 0",
-    "Test Error 1",
-    "Test Error 2",
-};
-
-static tn_error_table_t *test_mk_error_table(const test_value_t *params)
-{
-    tn_error_table_t *table = TN_NEW(tn_error_table_t);
-
-    table->namespace = params[0].b ? 1 : TN_ERROR_NS_DYNAMIC;
-    table->errfunc   = params[1].b ? test_errfunc : NULL;
-    table->n_errs    = params[2].b ?
-        sizeof(test_err_strings) / sizeof(*test_err_strings) :
-        0;
-    table->errs      = params[2].b ? test_err_strings : NULL;
-    table->chain     = NULL;
-
-    return table;
-}
-
-TESTCASE(do_register, "Register error tables",
-         true, false, TCLASS(BUCKET0) | TCLASS(BUCKET1), 0,
-         values,
-         {
-             tn_error_table_t *et = test_mk_error_table(values);
-             unsigned ns = et->namespace;
-
-             tn_register_error_table(et);
-             
-             ASSERT(et->chain != NULL);
-             if (ns == TN_ERROR_NS_DYNAMIC)
-             {
-                 EXPECT(unsigned, TESTVAL(u, DYNAMIC_NS_BIT),
-                        TESTVAL(u, et->namespace));
-                 CLASSIFY(BUCKET0);
-             }
-             else
-             {
-                 EXPECT(unsigned, TESTVAL(u, ns), TESTVAL(u, et->namespace));
-                 CLASSIFY(BUCKET1);
-             }
-         },
-         &test_every_bool,
-         &test_every_bool,
-         &test_every_bool);
-
-TESTCASE(cannot_register_twice, "Cannot register the same table twice",
-         true, false, TCLASS(BUCKET0) | TCLASS(BUCKET1), 0,
-         values,
-         {
-             tn_error_table_t *et = test_mk_error_table(values + 1);
-             test_value_t sink;
-             test_value_t is_exit;
-             test_value_t termsig;
-
-             tn_register_error_table(et);
-             REDIRECT_STDERR(&sink,
-                             ISOLATED(&is_exit, &termsig,
-                                      {
-                                          tn_error_table_t *et2;
-
-                                          if (!values[0].b)
-                                              et2 = et;
-                                          else
-                                          {
-                                              et2 = TN_NEW(tn_error_table_t);
-                                              *et2 = *et;
-                                              et2->chain = NULL;
-                                          }
-                                          tn_register_error_table(et2);
-                                      }));
-             ASSERT(!is_exit.b);
-             EXPECT(int, termsig, TESTVAL(i, SIGABRT));
-             if (values[0].b)
-                 CLASSIFY(BUCKET0);
-             else
-                 CLASSIFY(BUCKET1);
-         },
-         &test_every_bool,
-         &test_every_bool,
-         &test_every_bool,
-         &test_every_bool);
-
-#endif
 
 const char *tn_error_string(tn_status status)
 {
@@ -243,8 +140,7 @@ void tn_report_statusv(enum tn_severity severity, const char *module,
 
     vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
     
-    if ((severity != TN_EXCEPTION || !exception_handler) &&
-        severity <= tn_verbosity_level)
+    if (severity <= tn_verbosity_level)
     {
         char tag_buf[128];
         const char *errstr = tn_error_string(status);
@@ -311,19 +207,6 @@ tn_fatal_error(const char *module, tn_status status, const char *fmt, ...)
     va_start(args, fmt);
 
     tn_report_statusv(TN_FATAL, module, status, NULL, fmt, args);
-    
-    va_end(args);
-    abort();
-}
-
-void
-tn_throw_exception(const char *module, tn_status status,
-                   const char *action, const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-
-    tn_report_statusv(TN_EXCEPTION, module, status, action, fmt, args);
     
     va_end(args);
     abort();
@@ -410,45 +293,6 @@ static void test_fatal_error(bool is_fatal)
 #endif
 
 #endif
-
-tn_status
-tn_with_exception(tn_status (*action)(void *),
-                  tn_exception_handler handler,
-                  void *data)
-{
-    volatile sigjmp_buf current_handler;
-    volatile sigjmp_buf * volatile previous_handler = exception_handler;
-
-    exception_handler = &current_handler;
-
-    exception_code = 0;
-    if (!sigsetjmp(*(sigjmp_buf *)exception_handler, true))
-        exception_code = action(data);
-    else
-    {
-        assert(exception_code != 0);
-        if (handler)
-        {
-            tn_status rc = handler(data, exception_origin,
-                                   exception_code, exception_action,
-                                   exception_details);
-            if (rc == EAGAIN)
-            {
-                char rethrow_details[sizeof(exception_details)];
-                
-                strcpy(rethrow_details, exception_details);
-                exception_handler = previous_handler;
-                tn_throw_exception(exception_origin, exception_code,
-                                   exception_action, "%s", rethrow_details);
-            }
-            exception_code = rc;
-        }
-    }
-
-    exception_handler = previous_handler;
-    
-    return exception_code;
-}
 
 #if 0
 

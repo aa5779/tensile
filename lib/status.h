@@ -35,8 +35,7 @@ extern "C"
 #endif
 
 #include <stdarg.h>
-#include <errno.h>
-#include <string.h>
+#include <stdbool.h>
 #include "compiler.h"
 
 #ifndef THE_COMPONENT
@@ -47,47 +46,82 @@ extern "C"
 #error "THE_MODULE should be defined"
 #endif
 
-/**
- * Generic return status, 0 always means success
- */
-typedef unsigned tn_status;
+typedef struct tn_status {
+    unsigned short ns;
+    unsigned short code;
+} tn_status;
 
-typedef struct tn_error_table_t {
-    unsigned                 namespace;
-    const char            *(*errfunc)(int errcode);
-    unsigned                 n_errs;
-    const char      * const *errs;
-    struct tn_error_table_t *chain;
-} tn_error_table_t;
+#define TN_ERROR_NS_DYNAMIC ((unsigned short)(~0))
 
-#define TN_ERROR_NS_DYNAMIC ((unsigned)(~0))
+#define TN_STATUS(_ns, _code)                           \
+    ((struct tn_status){.ns = (_ns), .code = (_code)})
 
-#define TN_STATUS(_ns, _code) (((tn_status)(_ns) << 16) | (tn_status)(_code))
-
-#define TN_STATUS_NS(_status) (((_status) >> 16) & 0xffffu)
-#define TN_STATUS_CODE(_status) ((int)((_status) & 0xffffu))
+#define TN_IS_SUCCESS(_status)                      \
+    (((_status).ns == 0) && ((_status).code) == 0))
 
 /**
- * Register an error table
- */
-NO_NULL_ARGS
-extern void tn_register_error_table(tn_error_table_t *table);
-
-MUST_USE
-extern const char *tn_error_string(tn_status status);
-
-/**
- * Error severity levels
+ * Status severity levels
  */
 enum tn_severity {
-    TN_FATAL,     /*< Fatal error, abort */
-    TN_EXCEPTION, /*< Exception, jump to the handler or abort */
-    TN_ERROR,     /*< Recoverable error */
-    TN_WARNING,   /*< Warning */
-    TN_NOTICE,    /*< Important event notification */
-    TN_INFO,      /*< Informational messages */
-    TN_TRACE,     /*< Debug tracing */
+    TN_SEV_UNDEFINED, /*< Undefined severity */
+    TN_SEV_FATAL,     /*< Fatal error, abort */
+    TN_SEV_ERROR,     /*< Recoverable error */
+    TN_SEV_WARNING,   /*< Warning */
+    TN_SEV_NOTICE,    /*< Important event notification */
+    TN_SEV_INFO,      /*< Informational messages */
+    TN_SEV_TRACE,     /*< Debug tracing */
 };
+
+/**
+ * Error status classification
+ */
+enum tn_status_origin {
+    TN_STATUS_HW,    /*< Hardware error */
+    TN_STATUS_OS,    /*< Error reported by OS */
+    TN_STATUS_EXT,   /*< Error reported by an external tool */
+    TN_STATUS_APP,   /*< Application (internal) error */
+    TN_STATUS_USER,  /*< User error */
+};
+
+/**
+ * Error recoverability
+ */
+enum tn_status_recover {
+    TN_STATUS_RECOVER_NA,    /*< Recoverability status unknown */
+    TN_STATUS_RECOVER,       /*< Recoverable error */
+    TN_STATUS_NO_RECOVER,    /*< Non-recoverable error */
+};
+
+/**
+ * Status description
+ */
+typedef struct tn_status_descr {
+    enum tn_status_origin origin;   /*< Error origin */
+    enum tn_status_recover recover; /*< Recoverability status */
+    enum tn_severity def_severity;  /*< Default severity */
+    const char *details_fmt;        /*< Format string for details */
+    const char *action;             /*< Action message */
+    unsigned refid;                 /*< Reference ID */
+} tn_status_descr;
+
+/**
+ * A function type to map from  a status code to its description
+ */
+typedef tn_error_descr (*tn_status_describer)(unsigned short code);
+
+/**
+ * Register an error describer
+ */
+NO_NULL_ARGS
+extern unsigned short tn_register_status_describer(unsigned short ns,
+                                                   tn_status_describer func);
+
+#define TN_REGISTER_STATUS_DESC
+
+
+MUST_USE
+extern tn_status_descr tn_describe_status(tn_status status);
+
 
 /**
  * Messages with a severity greater than this value won't be reported
@@ -157,47 +191,10 @@ extern noreturn void tn_fatal_error(const char *module, tn_status status,
     __TN_REPORT_STATUS_WITH_CHECK(tn_fatal_error(TN_REPORT_STATUS_MODULE, \
                                                  (_status), __VA_ARGS__))
 
-/**
- * Equivalent of `tn_report_status(TN_EXCEPTION, ...)`
- */
-LIKE_PRINTF(4, 5) NOT_NULL_ARGS(3)
-extern noreturn void tn_throw_exception(const char *module, tn_status status,
-                                        const char *action, const char *fmt,
-                                        ...);
-
-#define TN_THROW(_status, _action, ...)                                 \
-    __TN_REPORT_STATUS_WITH_CHECK(tn_report_status(TN_REPORT_STATUS_MODULE, \
-                                                   (_status), (_action), \
-                                                   __VA_ARGS__))
 
 #define TN_INTERNAL_ERROR(_severity, _status, _fmt, ...)                \
     TN_REPORT_STATUS(_severity, _status, "%s():%d: " _fmt,              \
                      __FUNCTION__, __LINE__, __VA_ARGS__)
-
-/**
- * Type for error handlers
- */
-typedef tn_status (*tn_exception_handler)(void *data, const char *module,
-                                          tn_status status,
-                                          const char *action,
-                                          const char *msg);
-
-/**
- * Execute @a action guarded by the exception handler.
- * If @a handler is specified, it is executed after the exception is
- * throw with the originating module, status code, and formatted message.
- * The status code of the handler is returned
- * @note If an exception is thrown from @a handler, it will be called again,
- * so care must be taken as not to enter an infinite loop
- *
- * @param action   Main action
- * @param handler  Optional exception handler
- * @param data     User data to pass to @a action and @a handler
- */
-MUST_USE NOT_NULL_ARGS(1)
-extern tn_status tn_with_exception(tn_status (*action)(void *),
-                                   tn_exception_handler handler,
-                                   void *data);
 
 #ifdef __cplusplus
 }

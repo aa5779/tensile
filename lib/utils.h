@@ -79,6 +79,8 @@ void tn_set_finalizer(void *obj, tn_finalizer fn, void *data)
     GC_register_finalizer(obj, fn, data, NULL, NULL);
 }
 
+#define TN_ARRAY_SIZE(_arr) (sizeof(_arr) / sizeof(*(_arr)))
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -356,6 +356,15 @@ extern "C"
 #define DESTRUCTOR constructors_are_not_supported
 #endif
 
+#define GLOBAL_INIT(_type, _var, _code) \
+    _type _var;                         \
+    CONSTRUCTOR _var##_init(void)       \
+    {                                   \
+        _code;                          \
+    }                                   \
+    struct fake
+
+
 /**@}*/
 
 #ifdef __cplusplus
