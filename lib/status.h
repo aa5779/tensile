@@ -51,7 +51,7 @@ typedef struct tn_status {
     unsigned short code;
 } tn_status;
 
-#define TN_ERROR_NS_DYNAMIC ((unsigned short)(~0))
+#define TN_STATUS_NS_DYNAMIC ((unsigned short)(~0))
 
 #define TN_STATUS(_ns, _code)                           \
     ((struct tn_status){.ns = (_ns), .code = (_code)})
@@ -109,25 +109,47 @@ typedef struct tn_status_descr {
  */
 typedef tn_error_descr (*tn_status_describer)(unsigned short code);
 
+typedef struct tn_status_namespace {
+    unsigned short id;                 /*< Status namespace ID */
+    tn_status_describer describe;      /*< Status description function */
+    const struct tn_status_namespace *chain; /*< Next status namespace */
+} tn_status_namespace;
+
+enum tn_status_base_namespace_id {
+    TN_STATUS_NS_ERRNO,
+    TN_STATUS_NS_EXIT,
+    TN_STATUS_NS_INTERNAL,
+};
+
 /**
- * Register an error describer
+ * Register a status namespace
  */
 NO_NULL_ARGS
-extern unsigned short tn_register_status_describer(unsigned short ns,
-                                                   tn_status_describer func);
+extern void tn_register_status_namespace(tn_status_namespace *ns);
 
-#define TN_REGISTER_STATUS_DESC
-
+#define TN_REGISTER_STATUS_NS(_nsvar, _nsval, _describer)           \
+    static tn_status_namespace _nsvar = {                           \
+        .id = (_nsval),                                             \
+        .describe = (_describer)                                    \
+    };                                                              \
+                                                                    \
+    CONSTRUCTOR _nsvar##_init(void)                                 \
+    {                                                               \
+        tn_register_status_describer(&(_nsvar));                    \
+    }                                                               \
+    struct fake
 
 MUST_USE
 extern tn_status_descr tn_describe_status(tn_status status);
-
 
 /**
  * Messages with a severity greater than this value won't be reported
  */
 extern enum tn_severity tn_verbosity_level;
 
+/**
+ * A flag to indicate whether to report statuses to stderr or syslog
+ */
 extern bool tn_interactive_report;
 
 /**
@@ -136,15 +158,10 @@ extern bool tn_interactive_report;
  * @param severity Status severity
  * @param module   Identifying module (may be NULL)
  * @param status   Status code to report
- * @param fmt      printf-style format string
  * @param ...      Format arguments
  */
-LIKE_PRINTF(5, 6) NOT_NULL_ARGS(5)
 extern void tn_report_status(enum tn_severity severity,
-                             const char *module,
-                             tn_status status,
-                             const char *action,
-                             const char *fmt, ...);
+                             const char *module, tn_status status, ...);
 
 
 #define TN_REPORT_STATUS_MODULE THE_COMPONENT ":" THE_MODULE
@@ -158,11 +175,10 @@ extern void tn_report_status(enum tn_severity severity,
         _report;                                                        \
     } while(0)
 
-#define TN_REPORT_STATUS(_severity, _status, _action, ...)              \
+#define TN_REPORT_STATUS(_severity, _status, ...)                       \
     __TN_REPORT_STATUS_WITH_CHECK(tn_report_status((_severity),         \
                                                    TN_REPORT_STATUS_MODULE, \
-                                                   (_status), (_action), \
-                                                   __VA_ARGS__))
+                                                   (_status), __VA_ARGS__))
 
 /**
  * Report a status (va_list version)
@@ -173,19 +189,15 @@ extern void tn_report_status(enum tn_severity severity,
  * @param fmt      printf-style format string
  * @param args     Format arguments as va_list
  */
-LIKE_PRINTF(5, 0) NOT_NULL_ARGS(5)
 extern void tn_report_statusv(enum tn_severity severity,
                               const char *module,
                               tn_status status,
-                              const char *action,
-                              const char *fmt, va_list args);
+                              va_list args);
 
 /**
  * Equivalent of `tn_report_status(TN_FATAL, ...)`
  */
-LIKE_PRINTF(3, 4) NOT_NULL_ARGS(3)
-extern noreturn void tn_fatal_error(const char *module, tn_status status,
-                                    const char *fmt, ...);
+extern noreturn void tn_fatal_error(const char *module, tn_status status, ...);
 
 #define TN_FATAL_ERROR(_status, ...)                                    \
     __TN_REPORT_STATUS_WITH_CHECK(tn_fatal_error(TN_REPORT_STATUS_MODULE, \

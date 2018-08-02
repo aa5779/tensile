@@ -25,7 +25,6 @@
  */
 
 #include <stdlib.h>
-#include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,62 +32,91 @@
 #define THE_COMPONENT "library"
 #define THE_MODULE "status"
 #include "status.h"
+#include "utils.h"
 #include "testing.h"
 
-static tn_error_table_t sys_error_table = {
-    .namespace = 0,
-    .errfunc   = (const char *(*)(int))strerror,
-    .n_errs    = 0,
-    .errs      = NULL,
-    .chain     = NULL,
+static tn_status_descr tn_errno2status_descr(unsigned short code)
+{
+    return (tn_status_descr){
+        .origin = TN_STATUS_OS,
+        .recover = TN_STATUS_RECOVER_NA,
+        .def_severity = TN_SEV_ERROR,
+        /* we hope strerror never returns a string with % */
+        .details_fmt = strerror(code),
+        .action = NULL,
+        .refid = 0
+    };
+}
+
+static const tn_status_namespace errno_namespace = {
+    .id = TN_STATUS_NS_ERRNO,
+    .describe = tn_errno2status_descr,
+    .chain = NULL;
 };
 
-static tn_error_table_t *error_tables = &sys_error_table;
-static unsigned dynamic_ns_seq = 0;
+static const tn_status_namespace exit_namespace = {
+    .id = TN_STATUS_NS_EXIT,
+    .describe = tn_errno2status_descr,
+    .chain = &errno_namespace;
+};
+
+static const tn_status_namespace internal_namespace = {
+    .id = TN_STATUS_NS_INTERNAL,
+    .describe = tn_errno2status_descr,
+    .chain = &exit_namespace;
+};
+
+static const tn_status_namespace *registered_namespaces = &internal_namespace;
+
+static const tn_status_namespace *find_namespace(unsigned short id)
+{
+    tn_status_namespace *ns;
+
+    for (ns = registered_namespaces; ns != NULL; ns = ns->chain)
+    {
+        if (ns->id == id)
+            return ns;
+    }
+    return NULL;
+}
 
 #define DYNAMIC_NS_BIT (1 << 15)
 
-void tn_register_error_table(tn_error_table_t *table)
+void tn_register_status_namespace(tn_status_namespace *ns)
 {
-    tn_error_table_t *iter;
+    static unsigned short seqno;
 
-    assert(table->chain == NULL);
-    if (table->namespace == TN_ERROR_NS_DYNAMIC)
+    assert(ns->chain == NULL);
+    if (table->id == TN_STATUS_NS_DYNAMIC)
     {
-        table->namespace = DYNAMIC_NS_BIT | dynamic_ns_seq++;
+        table->id = DYNAMIC_NS_BIT | seqno++;
     }
-    for (iter = error_tables; iter != NULL; iter = iter->chain)
+    else
     {
-        if (iter->namespace == table->namespace)
-            abort();
+        assert((table->ns & DYNAMIC_NS_BIT) == 0);
     }
+    assert(find_namespace(ns->id) == NULL);
 
-    table->chain = error_tables;
-    error_tables = table;
+    ns->chain = registered_namespaces;
+    registered_namespaces = ns;
 }
 
-const char *tn_error_string(tn_status status)
+tn_status_descr tn_describe_status(tn_status status)
 {
-    tn_error_table_t *iter;
-    unsigned ns = TN_STATUS_NS(status);
-    const char *result = NULL;
-    
-    for (iter = error_tables; iter != NULL; iter = iter->chain)
+    const tn_status_namespace *ns = find_namespace(status.ns);
+
+    if (ns == NULL)
     {
-        if (iter->namespace == ns)
-        {
-            int code = TN_STATUS_CODE(status);
-
-            if (iter->errfunc)
-                result = iter->errfunc(code);
-            if (result == NULL && iter->errs != NULL &&
-                (unsigned)code < iter->n_errs)
-                result = iter->errs[code];
-            break;
-        }
+        return (tn_status_descr){.origin = TN_STATUS_APP,
+                .recover = TN_STATUS_RECOVER_NA,
+                .def_severity = TN_SEV_UNDEFINED,
+                .details_fmt = NULL,
+                .action = NULL,
+                .refid = 0u
+                };
     }
-
-    return result;
+    
+    return ns->describe(status.code);
 }
 
 #if DO_TESTS
@@ -117,85 +145,80 @@ enum tn_severity tn_verbosity_level = TN_INFO;
 
 bool tn_interactive_report = true;
 
-static tn_status exception_code;
-static volatile sigjmp_buf *exception_handler;
-static char exception_details[256];
-static const char *exception_origin;
-static const char *exception_action;
-
 void tn_report_statusv(enum tn_severity severity, const char *module,
-                       tn_status status, const char *action,
-                       const char *fmt, va_list args)
+                       tn_status status, va_list args)
 {
     static const int severity_map[] = {
-        MM_HALT,
+        MM_NOSEV,
         MM_HALT,
         MM_ERROR,
         MM_WARNING,
         MM_INFO,
         MM_INFO,
-        MM_NOSEV
+        MM_INFO,
     };
+    static const int origin_map[] = {
+        MM_HARD | MM_OPSYS,
+        MM_SOFT | MM_OPSYS,
+        MM_SOFT | MM_UTIL,
+        MM_SOFT | MM_APPL,
+        MM_SOFT | MM_APPL,
+    };
+    static const int recover_map[] = {
+        0,
+        MM_RECOVER,
+        MM_NRECOV,
+    };
+    tn_status_descr descr = tn_describe_status(status);
     char msg_buf[256];
+    char tag_buf[128];
 
-    vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
+    if (severity == TN_SEV_UNDEFINED)
+        severity = descr.def_severity;
+
+    if (severity > tn_verbosity_level)
+        return;
+
+    if (descr.details_fmt == NULL)
+    {
+        snprintf(msg_buf, sizeof(msg_buf), "%04x:%04x",
+                 status.ns, status.code);
+    }
+    else
+    {
+        vsnprintf(msg_buf, sizeof(msg_buf), descr.details_fmt, args);
+    }
     
-    if (severity <= tn_verbosity_level)
+    if (descr.refid != 0)
     {
-        char tag_buf[128];
-        const char *errstr = tn_error_string(status);
-        
-        if (errstr != NULL)
-        {
-            snprintf(tag_buf, sizeof(tag_buf), "%s%s%s (%#x)",
-                     module ? module : "",
-                     module ? ": " : "", errstr, status);
-        }
-        else
-        {
-            snprintf(tag_buf, sizeof(tag_buf), "%s%s%#x",
-                     module ? module : "",
-                     module ? ": " : "",
-                     status);
-        }
-        if (fmtmsg(tn_interactive_report ? MM_PRINT : MM_CONSOLE,
-                   module, severity_map[severity],
-                   msg_buf, action, tag_buf) == MM_NOTOK)
-            abort();
+        snprintf(tag_buf, sizeof(tag_buf), "%s:%08x",
+                 module != NULL ? module : "-:-",
+                 descr.refid);
     }
 
-    switch (severity)
+    if (fmtmsg((tn_interactive_report ? MM_PRINT : MM_CONSOLE) |
+               origin_map[descr.origin] |
+               recover_map[desc.recover],
+               module == NULL ? MM_NULLLBL : module,
+               severity_map[severity],
+               msg_buf, action, descr.refid ? tag_buf : MM_NULLTAG) ==
+        MM_NOTOK)
     {
-        case TN_EXCEPTION:
-            assert(status != 0);
-            if (exception_handler)
-            {
-                strncpy(exception_details, msg_buf,
-                        sizeof(exception_details) - 1);
-                exception_code = status;
-                exception_origin = module;
-                exception_action = action;
-
-                siglongjmp(*(sigjmp_buf *)exception_handler, 1);
-            }
-            /* fallthrough */
-        case TN_FATAL:
-            abort();
-            break;
-        default:
-            /* do nothing */
-            break;
+        abort();
     }
+
+    if (severity == TN_SEV_FATAL)
+        abort();
 }
 
 void
 tn_report_status(enum tn_severity severity, const char *module,
-                 tn_status status, const char *action, const char *fmt, ...)
+                 tn_status status, ...)
 {
     va_list args;
     va_start(args, fmt);
 
-    tn_report_statusv(severity, module, status, action, fmt, args);
+    tn_report_statusv(severity, module, status, args);
     
     va_end(args);
 }
@@ -206,7 +229,7 @@ tn_fatal_error(const char *module, tn_status status, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    tn_report_statusv(TN_FATAL, module, status, NULL, fmt, args);
+    tn_report_statusv(TN_SEV_FATAL, module, status, args);
     
     va_end(args);
     abort();
