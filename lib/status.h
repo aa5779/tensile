@@ -38,12 +38,12 @@ extern "C"
 #include <stdbool.h>
 #include "compiler.h"
 
-#ifndef THE_COMPONENT
-#error "THE_COMPONENT should be defined"
+#ifndef TN_COMPONENT
+#error "TN_COMPONENT should be defined"
 #endif
 
-#ifndef THE_MODULE
-#error "THE_MODULE should be defined"
+#ifndef TN_MODULE
+#error "TN_MODULE should be defined"
 #endif
 
 typedef struct tn_status {
@@ -55,6 +55,12 @@ typedef struct tn_status {
 
 #define TN_STATUS(_ns, _code)                           \
     ((struct tn_status){.ns = (_ns), .code = (_code)})
+
+#define TN_ERRNO2STATUS(_errno)                 \
+    TN_STATUS(TN_STATUS_NS_ERRNO, (_errno))
+    
+
+#define TN_SUCCESS ((struct tn_status){0u, 0u})
 
 #define TN_IS_SUCCESS(_status)                      \
     (((_status).ns == 0) && ((_status).code) == 0))
@@ -107,7 +113,7 @@ typedef struct tn_status_descr {
 /**
  * A function type to map from  a status code to its description
  */
-typedef tn_error_descr (*tn_status_describer)(unsigned short code);
+typedef tn_status_descr (*tn_status_describer)(unsigned short code);
 
 typedef struct tn_status_namespace {
     unsigned short id;                 /*< Status namespace ID */
@@ -119,6 +125,13 @@ enum tn_status_base_namespace_id {
     TN_STATUS_NS_ERRNO,
     TN_STATUS_NS_EXIT,
     TN_STATUS_NS_INTERNAL,
+};
+
+enum tn_status_internal_code {
+    TN_STATUS_INTERNAL_MSG,
+    TN_STATUS_INTERNAL_ENTRY,
+    TN_STATUS_INTERNAL_EXIT,
+    TN_STATUS_INTERNAL_EXIT_RC,
 };
 
 /**
@@ -180,6 +193,12 @@ extern void tn_report_status(enum tn_severity severity,
                                                    TN_REPORT_STATUS_MODULE, \
                                                    (_status), __VA_ARGS__))
 
+#define TN_ERROR(_status, ...) \
+    TN_REPORT_STATUS(TN_SEV_ERROR, (_status), __VA_ARGS__)
+
+#define TN_WARNING(_status, ...) \
+    TN_REPORT_STATUS(TN_SEV_WARNING, (_status), __VA_ARGS__)
+
 /**
  * Report a status (va_list version)
  *
@@ -204,9 +223,40 @@ extern noreturn void tn_fatal_error(const char *module, tn_status status, ...);
                                                  (_status), __VA_ARGS__))
 
 
-#define TN_INTERNAL_ERROR(_severity, _status, _fmt, ...)                \
-    TN_REPORT_STATUS(_severity, _status, "%s():%d: " _fmt,              \
-                     __FUNCTION__, __LINE__, __VA_ARGS__)
+#define TN_INTERNAL_ERROR(_severity, _msg)                              \
+    TN_REPORT_STATUS(_severity,                                         \
+                     TN_STATUS(TN_STATUS_NS_INTERNAL,                   \
+                               TN_STATUS_INTERNAL_MSG),                 \
+                     __FUNCTION__, __FILE__, __LINE__, _msg)
+
+#define TN_LOG_ENTRY()                                                  \
+    TN_REPORT_STATUS(TN_SEV_TRACE,                                      \
+                     TN_STATUS(TN_STATUS_NS_INTERNAL,                   \
+                               TN_STATUS_INTERNAL_ENTRY),               \
+                     __FUNCTION__)
+
+#define TN_LOG_EXIT()                                                   \
+    TN_REPORT_STATUS(TN_SEV_TRACE,                                      \
+                     TN_STATUS(TN_STATUS_NS_INTERNAL,                   \
+                               TN_STATUS_INTERNAL_EXIT),                \
+                     __FUNCTION__)
+
+#define TN_LOG_EXIT_RC(_status)                                         \
+    TN_REPORT_STATUS(TN_SEV_TRACE,                                      \
+                     TN_STATUS(TN_STATUS_NS_INTERNAL,                   \
+                               TN_STATUS_INTERNAL_EXIT_RC),             \
+                     __FUNCTION__, (_status).ns, (_status).code)
+
+#define TN_CHECK_RC(_expr)                      \
+    do {                                        \
+        tn_status _rc = (_expr);                \
+        if (!TN_IS_SUCCESS(_rc))                \
+        {                                       \
+            TN_LOG_EXIT_RC(_rc);                \
+            return _rc;                         \
+        }                                       \
+    } while (0)
+
 
 #ifdef __cplusplus
 }

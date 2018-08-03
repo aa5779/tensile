@@ -81,6 +81,9 @@ void tn_set_finalizer(void *obj, tn_finalizer fn, void *data)
 
 #define TN_ARRAY_SIZE(_arr) (sizeof(_arr) / sizeof(*(_arr)))
 
+#define TN_ARRAY_GET(_arr, _idx, _defval)                       \
+    ((_idx) < TN_ARRAY_SIZE(_arr) ? (_arr)[_idx] : (_defval))
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

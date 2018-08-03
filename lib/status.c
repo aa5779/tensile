@@ -29,17 +29,37 @@
 #include <stdio.h>
 #include <string.h>
 #include <fmtmsg.h>
-#define THE_COMPONENT "library"
-#define THE_MODULE "status"
+#include <errno.h>
+#include <sysexits.h>
+#include <sys/wait.h>
+#include <signal.h>
+#define TN_COMPONENT "library"
+#define TN_MODULE "status"
 #include "status.h"
 #include "utils.h"
 #include "testing.h"
 
-static tn_status_descr tn_errno2status_descr(unsigned short code)
+static tn_status_descr errno2status_descr(unsigned short code)
 {
+    enum tn_status_recover recover;
+
+    switch (code)
+    {
+        case EINTR:
+        case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+        case EWOULDBLOCK:
+#endif
+        case EINPROGRESS:
+            recover = TN_STATUS_RECOVER;
+            break;
+        default:
+            recover = TN_STATUS_RECOVER_NA;
+            break;
+    }
     return (tn_status_descr){
         .origin = TN_STATUS_OS,
-        .recover = TN_STATUS_RECOVER_NA,
+        .recover = recover,
         .def_severity = TN_SEV_ERROR,
         /* we hope strerror never returns a string with % */
         .details_fmt = strerror(code),
@@ -50,27 +70,108 @@ static tn_status_descr tn_errno2status_descr(unsigned short code)
 
 static const tn_status_namespace errno_namespace = {
     .id = TN_STATUS_NS_ERRNO,
-    .describe = tn_errno2status_descr,
-    .chain = NULL;
+    .describe = errno2status_descr,
+    .chain = NULL
 };
+
+static tn_status_descr exit2status_descr(unsigned short code)
+{
+    tn_status_descr descr = {
+        .action = NULL,
+        .refid  = 0
+    };
+
+    if (WIFEXITED(code))
+    {
+        static const char * const exit_codes[] = {
+            [EXIT_SUCCESS] = "Success",
+            [EXIT_FAILURE] = "Failure",
+            [EX_USAGE] = "Command line usage error",
+            [EX_DATAERR] = "Data format error",
+            [EX_NOINPUT] = "Cannot open input",
+            [EX_NOUSER] = "Addressee unknown",
+            [EX_NOHOST] = "Host name unknown",
+            [EX_UNAVAILABLE] = "Service unavailable",
+            [EX_SOFTWARE] = "Internal software error",
+            [EX_OSERR] = "System error",
+            [EX_OSFILE] = "Critical OS file missing",
+            [EX_CANTCREAT] = "Can't create (user) output file",
+            [EX_IOERR] = "Input/output error",
+            [EX_TEMPFAIL] = "Temp failure",
+            [EX_PROTOCOL] = "Remote error in protocol",
+            [EX_NOPERM] = "Permission denied",
+            [EX_CONFIG] = "Configuration error",
+        };
+        unsigned exit_code = WEXITSTATUS(code);
+        descr.details_fmt = TN_ARRAY_GET(exit_codes, code, NULL);
+        descr.recover = exit_code == EX_TEMPFAIL ?
+            TN_STATUS_RECOVER :
+            TN_STATUS_RECOVER_NA;
+        descr.origin = exit_code == EX_OSERR ? TN_STATUS_OS : TN_STATUS_EXT;
+        descr.def_severity = exit_code == EXIT_SUCCESS ?
+            TN_SEV_INFO : TN_SEV_ERROR;
+    }
+    else
+    {
+        unsigned sig = WTERMSIG(code);
+        descr.details_fmt = strsignal((int)sig);
+        descr.recover = TN_STATUS_RECOVER_NA;
+        descr.origin = TN_STATUS_EXT;
+        descr.def_severity = sig == SIGTERM ? TN_SEV_INFO : TN_SEV_ERROR;
+    }
+
+    return descr;
+}
 
 static const tn_status_namespace exit_namespace = {
     .id = TN_STATUS_NS_EXIT,
-    .describe = tn_errno2status_descr,
-    .chain = &errno_namespace;
+    .describe = exit2status_descr,
+    .chain = &errno_namespace
 };
+
+static tn_status_descr internal_descr(unsigned short code)
+{
+    static const tn_status_descr table[] = {
+        [TN_STATUS_INTERNAL_MSG] = {
+            .origin = TN_STATUS_APP,
+            .recover = TN_STATUS_RECOVER_NA,
+            .def_severity = TN_SEV_ERROR,
+            .details_fmt = "%s(): %s:%d %s",
+        },
+        [TN_STATUS_INTERNAL_ENTRY] = {
+            .origin = TN_STATUS_APP,
+            .recover = TN_STATUS_RECOVER,
+            .def_severity = TN_SEV_TRACE,
+            .details_fmt = "Enter %s()",
+        },        
+        [TN_STATUS_INTERNAL_EXIT] = {
+            .origin = TN_STATUS_APP,
+            .recover = TN_STATUS_RECOVER,
+            .def_severity = TN_SEV_TRACE,
+            .details_fmt = "Exit %s()"
+        },
+        [TN_STATUS_INTERNAL_EXIT_RC] = {
+            .origin = TN_STATUS_APP,
+            .recover = TN_STATUS_RECOVER,
+            .def_severity = TN_SEV_TRACE,
+            .details_fmt = "Exit %s(), rc=%04x:%04x"
+        }
+    };
+    assert(code < TN_ARRAY_SIZE(table));
+    return table[code];
+}
 
 static const tn_status_namespace internal_namespace = {
     .id = TN_STATUS_NS_INTERNAL,
-    .describe = tn_errno2status_descr,
-    .chain = &exit_namespace;
+    .describe = internal_descr,
+    .chain = &exit_namespace
 };
 
 static const tn_status_namespace *registered_namespaces = &internal_namespace;
 
 static const tn_status_namespace *find_namespace(unsigned short id)
 {
-    tn_status_namespace *ns;
+    const tn_status_namespace *ns;
 
     for (ns = registered_namespaces; ns != NULL; ns = ns->chain)
     {
@@ -87,13 +188,13 @@ void tn_register_status_namespace(tn_status_namespace *ns)
     static unsigned short seqno;
 
     assert(ns->chain == NULL);
-    if (table->id == TN_STATUS_NS_DYNAMIC)
+    if (ns->id == TN_STATUS_NS_DYNAMIC)
     {
-        table->id = DYNAMIC_NS_BIT | seqno++;
+        ns->id = DYNAMIC_NS_BIT | seqno++;
     }
     else
     {
-        assert((table->ns & DYNAMIC_NS_BIT) == 0);
+        assert((ns->id & DYNAMIC_NS_BIT) == 0);
     }
     assert(find_namespace(ns->id) == NULL);
 
@@ -120,31 +221,26 @@ tn_status_descr tn_describe_status(tn_status status)
 }
 
 #if DO_TESTS
-TESTCASE(system_errno, "System errno is correct", true, false,
-         TCLASS(NORMAL), 0, values,
-         {
-             int err = (int)(values[0].u % 78 + 1);
-             test_value_t s1 = {.s = strerror(err) };
-             test_value_t s2 = {.s = tn_error_string((tn_status)err) };
-             ASSERT(s2.s != NULL);
-             EXPECT(string, s1, s2);
-         },
-         &test_every_uint8_t);
+TN_START_TEST(system_errno)
+{
+    ck_assert_str_eq(tn_describe_status(TN_ERRNO2STATUS(_i)),
+                     strerror(_i));
+}
+TN_END_TEST;
 
-TESTCASE(unknown_status, "Unknown status reported as NULL", true, false,
-         TCLASS(NORMAL), 0, values,
-         {
-             ASSERT(tn_error_string(TN_STATUS(values[0].u + 1,
-                                              values[1].u)) == NULL);
-         },
-         &test_every_uint8_t,
-         &test_every_uint8_t);
+TN_TESTCASE(status_format, system_errno);
+
 #endif
 
-enum tn_severity tn_verbosity_level = TN_INFO;
+enum tn_severity tn_verbosity_level = TN_SEV_INFO;
 
 bool tn_interactive_report = true;
 
+/* this is required to circumvent GCC bug 77366 */
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-format-attribute"
+#endif
 void tn_report_statusv(enum tn_severity severity, const char *module,
                        tn_status status, va_list args)
 {
@@ -198,10 +294,10 @@ void tn_report_statusv(enum tn_severity severity, const char *module,
 
     if (fmtmsg((tn_interactive_report ? MM_PRINT : MM_CONSOLE) |
                origin_map[descr.origin] |
-               recover_map[desc.recover],
+               recover_map[descr.recover],
                module == NULL ? MM_NULLLBL : module,
                severity_map[severity],
-               msg_buf, action, descr.refid ? tag_buf : MM_NULLTAG) ==
+               msg_buf, descr.action, descr.refid ? tag_buf : MM_NULLTAG) ==
         MM_NOTOK)
     {
         abort();
@@ -210,13 +306,16 @@ void tn_report_statusv(enum tn_severity severity, const char *module,
     if (severity == TN_SEV_FATAL)
         abort();
 }
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic pop
+#endif
 
 void
 tn_report_status(enum tn_severity severity, const char *module,
                  tn_status status, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    va_start(args, status);
 
     tn_report_statusv(severity, module, status, args);
     
@@ -224,197 +323,13 @@ tn_report_status(enum tn_severity severity, const char *module,
 }
 
 void
-tn_fatal_error(const char *module, tn_status status, const char *fmt, ...)
+tn_fatal_error(const char *module, tn_status status, ...)
 {
     va_list args;
-    va_start(args, fmt);
+    va_start(args, status);
 
     tn_report_statusv(TN_SEV_FATAL, module, status, args);
     
     va_end(args);
     abort();
 }
-
-#if DO_TESTS
-
-DEFINE_ENUM_ENUMERATOR(tn_severity, enum tn_severity, i,
-                       TN_FATAL, TN_TRACE);
-DEFINE_DERIVED_GENERATOR(tn_severity, int);
-
-#define COMMA ,
-TESTCASE(report_error, "Report errors when severity level is high enough",
-         true, false, TCLASS(BUCKET0) | TCLASS(BUCKET1), TCLASS(TRIVIAL), values,
-         {
-             test_value_t output;
-             enum tn_severity severity = (enum tn_severity)values[0].i;
-             static const char * const severity_pfx[] =
-                 {
-                     [TN_FATAL] = "HALT: " COMMA
-                     [TN_EXCEPTION] = "HALT: " COMMA
-                     [TN_ERROR] = "ERROR: " COMMA
-                     [TN_WARNING] = "WARNING: " COMMA
-                     [TN_NOTICE] = "INFO: " COMMA
-                     [TN_INFO] = "INFO: " COMMA
-                     [TN_TRACE] = "" COMMA
-                 };
-             
-             if (severity <= TN_EXCEPTION)
-                 CLASSIFY(TRIVIAL);
-             REDIRECT_STDERR(&output,
-                             {
-                                 tn_verbosity_level = severity -
-                                     (values[1].b ? 0 : 1);
-                                 TN_REPORT_STATUS(
-                                         severity,
-                                         ERANGE, NULL, "%s",
-                                         values[2].s);
-                             }
-                 );
-             if (values[1].b)
-             {
-                 EXPECT_FMT(output, "%s:%s: %s%s\n%s:%s: %s (%#x)\n",
-                            THE_COMPONENT, THE_MODULE,
-                            severity_pfx[severity],
-                            values[2].s, THE_COMPONENT, THE_MODULE,
-                            strerror(ERANGE), ERANGE);
-                 CLASSIFY(BUCKET1);
-             }
-             else
-             {
-                 ASSERT(*output.s == '\0');
-                 CLASSIFY(BUCKET0);
-             }
-         },
-         &test_every_tn_severity,
-         &test_every_bool,
-         &test_every_pstring);
-
-#if 0
-static void test_fatal_error(bool is_fatal)
-{
-    pid_t child = fork();
-
-    assert(child != (pid_t)(-1));
-    if (child == 0)
-    {
-        if (is_fatal)
-            tn_fatal_error("test", EFAULT, "test");
-        else
-            tn_throw_exception("test", EFAULT, "test");
-        exit(0);
-    }
-    else
-    {
-        int status = 0;
-        pid_t result = wait(&status);
-
-        assert(result == child);
-        assert(WIFSIGNALED(status));
-        assert(WTERMSIG(status) == SIGABRT);
-    }
-}
-#endif
-
-#endif
-
-#if 0
-
-static tn_status test_action1(unused void *arg)
-{
-    return 0;
-}
-
-static tn_status test_action2(unused void *arg)
-{
-    return EINVAL;
-}
-
-static tn_status test_action3(unused void *arg)
-{
-    tn_throw_exception("test", EINVAL, "test");
-    return 0;
-}
-
-static tn_status test_nested_action(void *arg)
-{
-    tn_status status = tn_with_exception(test_action3, NULL, arg);
-    assert(status == EINVAL);
-    tn_throw_exception("test", EACCES, "test");
-    return 0;
-}
-
-static tn_status test_handler(unused void *arg, const char *origin,
-                              tn_status status,
-                              const char *msg)
-{
-    tn_report_status(TN_ERROR, __FUNCTION__, status, "got %s from %s",
-                     msg, origin);
-    return EBADF;
-}
-
-static tn_status test_double_handler(unused void *arg, const char *origin,
-                                     tn_status status,
-                                     const char *msg)
-{
-    tn_report_status(TN_ERROR, __FUNCTION__, status, "got %s from %s", msg,
-                     origin);
-    if (status != EBADF)
-        tn_throw_exception("test", EBADF, "test");
-    return EACCES;
-}
-
-static tn_status test_rethrow_handler(unused void *arg, const char *origin,
-                                      tn_status status,
-                                      const char *msg)
-{
-    tn_report_status(TN_ERROR, __FUNCTION__, status, "got %s from %s", msg,
-                     origin);
-    return EAGAIN;
-}
-
-static tn_status test_rethrow_action(void *arg)
-{
-    tn_status status = tn_with_exception(test_action3, test_rethrow_handler,
-                                         arg);
-    assert(0);
-    return status;
-}
-
-
-static void test_handle_exception(void)
-{
-    tn_status status;
-
-    status = tn_with_exception(test_action1, NULL, NULL);
-    assert(status == 0);
-
-    status = tn_with_exception(test_action2, NULL, NULL);
-    assert(status == EINVAL);
-
-    status = tn_with_exception(test_action3, NULL, NULL);
-    assert(status == EINVAL);
-
-    status = tn_with_exception(test_action3, test_handler, NULL);
-    assert(status == EBADF);
-
-    status = tn_with_exception(test_action3, test_double_handler, NULL);
-    assert(status == EACCES);
-
-    status = tn_with_exception(test_nested_action, NULL, NULL);
-    assert(status == EACCES);
-
-    status = tn_with_exception(test_rethrow_action,
-                               test_handler, NULL);
-    assert(status == EBADF);
-}
-
-int main()
-{
-    test_simple_report();
-    test_fatal_error(true);
-    test_fatal_error(false);
-    test_handle_exception();
-    puts("OK");
-    return 0;
-}
-#endif

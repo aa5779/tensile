@@ -77,7 +77,7 @@ GLOBAL_INIT(static Suite *, the_test_suite,
     }                                                       \
     struct fake
 
-int main(int argc, char *argv[])
+int main(UNUSED int argc, UNUSED char *argv[])
 {
     SRunner *runner = srunner_create(the_test_suite);
     int n_run;

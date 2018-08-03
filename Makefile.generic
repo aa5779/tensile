@@ -107,7 +107,7 @@ tests/%.o : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
 tests/%.d : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
 tests/%_ts : CFLAGS += $(TEST_CFLAGS)
 
-%_ts : %_ts.o
+tests/%_ts : tests/%_ts.o
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(TEST_LDFLAGS) $^ $(LDLIBS) $(TEST_LDLIBS) -lcheck
 
 tests/%_ts.o : %.c
