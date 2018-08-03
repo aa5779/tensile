@@ -358,7 +358,7 @@ extern "C"
 
 #define GLOBAL_INIT(_type, _var, _code) \
     _type _var;                         \
-    CONSTRUCTOR _var##_init(void)       \
+    CONSTRUCTOR void _var##_init(void)  \
     {                                   \
         _code;                          \
     }                                   \

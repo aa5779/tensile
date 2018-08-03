@@ -56,8 +56,8 @@ typedef struct tn_status {
 #define TN_STATUS(_ns, _code)                           \
     ((struct tn_status){.ns = (_ns), .code = (_code)})
 
-#define TN_ERRNO2STATUS(_errno)                 \
-    TN_STATUS(TN_STATUS_NS_ERRNO, (_errno))
+#define TN_ERRNO2STATUS(_errno)                             \
+    TN_STATUS(TN_STATUS_NS_ERRNO, (unsigned short)(_errno))
     
 
 #define TN_SUCCESS ((struct tn_status){0u, 0u})

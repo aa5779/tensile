@@ -102,8 +102,8 @@ static tn_status_descr exit2status_descr(unsigned short code)
             [EX_NOPERM] = "Permission denied",
             [EX_CONFIG] = "Configuration error",
         };
-        unsigned exit_code = WEXITSTATUS(code);
-        descr.details_fmt = TN_ARRAY_GET(exit_codes, code, NULL);
+        unsigned exit_code = (unsigned)WEXITSTATUS(code);
+        descr.details_fmt = TN_ARRAY_GET(exit_codes, exit_code, NULL);
         descr.recover = exit_code == EX_TEMPFAIL ?
             TN_STATUS_RECOVER :
             TN_STATUS_RECOVER_NA;
@@ -223,12 +223,44 @@ tn_status_descr tn_describe_status(tn_status status)
 #if DO_TESTS
 TN_START_TEST(system_errno)
 {
-    ck_assert_str_eq(tn_describe_status(TN_ERRNO2STATUS(_i)),
-                     strerror(_i));
+    const char *msg = tn_describe_status(TN_ERRNO2STATUS(_i)).details_fmt;
+    ck_assert_ptr_ne(msg, NULL);
+    ck_assert_str_eq(msg, strerror(_i));
 }
 TN_END_TEST;
 
-TN_TESTCASE(status_format, system_errno);
+TN_START_TEST(signal_names)
+{
+    const char *msg =
+        tn_describe_status(TN_STATUS(TN_STATUS_NS_EXIT,
+                                     (unsigned short)__W_EXITCODE(0, _i))).details_fmt;
+    ck_assert_ptr_ne(msg, NULL);
+    ck_assert_str_eq(msg, strsignal(_i));
+}
+TN_END_TEST;
+
+TN_START_TEST(generic_exit_failure)
+{
+    const char *msg =
+        tn_describe_status(TN_STATUS(TN_STATUS_NS_EXIT,
+                                     (unsigned short)__W_EXITCODE(EXIT_FAILURE, 0))).details_fmt;
+    ck_assert_ptr_ne(msg, NULL);
+    ck_assert_str_eq(msg, "Failure");
+}
+TN_END_TEST;
+
+
+TN_START_TEST(unknown_status)
+{
+    ck_assert_ptr_eq(tn_describe_status(TN_STATUS(0x7fffu, 0xffffu)).details_fmt, NULL);
+}
+TN_END_TEST;
+
+TN_TESTCASE(status_format,
+            TN_TEST_RANGE(system_errno, 1, sys_nerr - 1),
+            TN_TEST_RANGE(signal_names, 1, NSIG - 1),
+            TN_TEST(generic_exit_failure),
+            TN_TEST(unknown_status));
 
 #endif
 

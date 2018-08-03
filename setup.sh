@@ -47,7 +47,6 @@ PLATFORM_PLATFORM="${PLATFORM_OS}_${PLATFORM_ARCH}_${PLATFORM_CC_ID}${PLATFORM_V
 BUILDDIR="build/${PLATFORM_PLATFORM}"
 
 mkdir -p "$BUILDDIR" || exit 1
-mkdir -p "$BUILDDIR/tests" || exit 1
 
 if ! ${CC} -Wall -W -Werror -o "$BUILDDIR/testrun" setup/testrun.c || \
         ! test -x "$BUILDDIR/testrun"; then

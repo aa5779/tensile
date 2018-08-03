@@ -58,6 +58,8 @@ CPPFLAGS += -DPLATFORM_VARIANT_IS_$(PLATFORM_VARIANT)=1
 endif
 
 TEST_CPPFLAGS =
+TEST_LDFLAGS = -pthread
+TEST_LDLIBS = -lcheck -lrt -lsubunit
 
 CFLAGS += $(PCRE_CFLAGS)
 
@@ -103,21 +105,21 @@ lex.yy.o lex.yy.d : lex.yy.c tensile.tab.h
 
 %.tab.h : %.tab.c ;
 
-tests/%.o : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
-tests/%.d : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
-tests/%_ts : CFLAGS += $(TEST_CFLAGS)
+%_ts.o : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
+%_ts.d : CPPFLAGS += $(TEST_CPPFLAGS) -DDO_TESTS=1
+%_ts : CFLAGS += $(TEST_CFLAGS)
 
-tests/%_ts : tests/%_ts.o
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(TEST_LDFLAGS) $^ $(LDLIBS) $(TEST_LDLIBS) -lcheck
+%_ts : %_ts.o
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(TEST_LDFLAGS) $^ $(LDLIBS) $(TEST_LDLIBS)
 
-tests/%_ts.o : %.c
+%_ts.o : %.c
 	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
 
 ifneq ($(MAKECMDGOALS),clean)
 Makefile Makefile.generic : $(GENERATED_SOURCES)
 
 include $(C_SOURCES:.c=.d)
-include $(patsubst %,tests/%_ts.d,$(TESTABLES))
+include $(patsubst %,%_ts.d,$(TESTABLES))
 endif
 
 .PHONY : check
@@ -131,19 +133,20 @@ lint: $(C_SOURCES)
 endif
 
 ifeq ($(FORCE_CHECK),1)
-.PHONY : $(patsubst %,tests/%_ts,$(TESTABLES))
+.PHONY : $(patsubst %,%_ts,$(TESTABLES))
 endif
 
 ifneq ($(GCOV),)
 
-%.c.gcov : tests/%_ts.gcda %.c
-	@$(GCOV) -r -l -s $(TOPDIR) -o $(patsubst %.gcda,%.o,$(filter %.gcda,$^)) $(filter %.c,$^) 2>&1 | grep -E '^File|Lines'
+%.c.gcov : %_ts.gcda %.c
+	@$(GCOV) -p -r -l -s $(TOPDIR) -o $(patsubst %.gcda,%.o,$(filter %.gcda,$^)) $(filter %.c,$^) 2>&1 | grep -E '^File|Lines'
+	@mv "$(subst /,#,$@)" $@
 
 %.gcda : %.out ;
 
 else
 
-%.c.gcov : tests/%_ts.out
+%.c.gcov : %_ts.out
 	@echo "No coverage" >$@
 
 endif
@@ -166,18 +169,17 @@ clean :
 	$(RM) *.o
 	$(RM) *.d
 	$(RM) *.gcov
-	$(RM) tests/*
 	$(RM) $(APPLICATION)
 	$(RM) $(GENERATED_FILES)
 
 %.o : %.c
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-%.d : %.c | $(GENERATED_SOURCES)
+%_ts.d : %.c
 	@set -e; $(RM) $@; mkdir -p $(dir $@); \
 	$(CC) $(MFLAGS) $(CPPFLAGS) $< > $@
 
-tests/%_ts.d : %.c
+%.d : %.c | $(GENERATED_SOURCES)
 	@set -e; $(RM) $@; mkdir -p $(dir $@); \
 	$(CC) $(MFLAGS) $(CPPFLAGS) $< > $@
 

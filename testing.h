@@ -68,11 +68,11 @@ GLOBAL_INIT(static Suite *, the_test_suite,
 #define TN_TEST_RANGE(_test, _start, _end)      \
     tcase_add_loop_test(the_test_case, test_##_test, _start, _end)
 
-#define TN_TESTCASE(_tcname, ...)                       \
-    CONSTRUCTOR void _tcname##_init(void)               \
-    {                                                   \
-        TCase *the_test_case = tcase_create(#_tcname);  \
-        suite_add_test_case(the_test_suite, the_test_case); \
+#define TN_TESTCASE(_tcname, ...)                           \
+    CONSTRUCTOR void _tcname##_init(void)                   \
+    {                                                       \
+        TCase *the_test_case = tcase_create(#_tcname);      \
+        suite_add_tcase(the_test_suite, the_test_case);     \
         __VA_ARGS__;                                        \
     }                                                       \
     struct fake
