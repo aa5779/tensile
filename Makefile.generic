@@ -1,7 +1,7 @@
 # -*- mode: makefile-gmake; -*-
 #######################################################################
-# Copyright (c) 2017 Artem V. Andreev
-# 
+# Copyright (c) 2019 Artem V. Andreev
+#
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
 # "Software"), to deal in the Software without restriction, including
@@ -9,10 +9,10 @@
 # distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-#  
+#
 # The above copyright notice and this permission notice shall be included
 # in all copies or substantial portions of the Software.
-#  
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -41,12 +41,9 @@ FLEX = flex
 ETAGS = etags
 NM = nm
 AWK = gawk
+CPPCHECK = cppcheck
 PKG_CONFIG = pkg-config
-PCRE_CONFIG = $(PKG_CONFIG) libpcre
 DOXYGEN = doxygen
-
-PCRE_CFLAGS := $(shell $(PCRE_CONFIG) --cflags)
-PCRE_LIBS := $(shell $(PCRE_CONFIG) --libs)
 
 PLATFORM_ARCH_SYMBOL := $(subst :,_,$(subst .,_,$(subst -,_,$(subst +,_,$(PLATFORM_ARCH)))))
 PLATFORM_OS_SYMBOL := $(subst :,_,$(subst .,_,$(subst -,_,$(subst +,_,$(PLATFORM_OS)))))
@@ -61,11 +58,11 @@ TEST_CPPFLAGS =
 TEST_LDFLAGS = -pthread
 TEST_LDLIBS = -lcheck -lrt -lsubunit
 
-CFLAGS += $(PCRE_CFLAGS)
-
 LDFLAGS = -Wl,-export-dynamic
 LDLIBS = $(PCRE_LIBS) -lunistring -lgc -lm -ldl
 MFLAGS = -MM -MT '$@ $(patsubst %.d,%.o,$@)'
+
+CPPCHECK_FLAGS = --language=c
 
 -include $(TOPDIR)/setup/$(PLATFORM_OS).mk
 -include $(TOPDIR)/setup/$(PLATFORM_ARCH).mk
@@ -75,7 +72,6 @@ MFLAGS = -MM -MT '$@ $(patsubst %.d,%.o,$@)'
 ifneq ($(PLATFORM_VARIANT),)
 -include $(TOPDIR)/setup/$(PLATFORM_VARIANT).mk
 endif
-
 
 .SECONDARY :
 
@@ -88,7 +84,7 @@ SOURCES += $(GENERATED_SOURCES)
 
 TESTABLES = lib/status # xdr dstring
 
-APPLICATION = tensilec
+APPLICATION = tensile
 
 $(APPLICATION) : $(SOURCES:.c=.o)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS)
@@ -112,8 +108,8 @@ lex.yy.o lex.yy.d : lex.yy.c tensile.tab.h
 %_ts : %_ts.o
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(TEST_LDFLAGS) $^ $(LDLIBS) $(TEST_LDLIBS)
 
-%_ts.o : %.c
-	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
+%_ts.c : %.t
+	checkmk $< >$@
 
 ifneq ($(MAKECMDGOALS),clean)
 Makefile Makefile.generic : $(GENERATED_SOURCES)
@@ -125,12 +121,9 @@ endif
 .PHONY : check
 check : $(addsuffix .c.gcov,$(TESTABLES))
 
-ifneq ($(LINT),)
 .PHONY : lint
 lint: $(C_SOURCES)
-	$(LINT) $^
-
-endif
+	$(CPPCHECK) $(CPPCHECK_FLAGS) $^
 
 ifeq ($(FORCE_CHECK),1)
 .PHONY : $(patsubst %,%_ts,$(TESTABLES))
