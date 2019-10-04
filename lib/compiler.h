@@ -1,6 +1,6 @@
 /**********************************************************************
  * Copyright (c) 2017 Artem V. Andreev
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -8,10 +8,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- *  
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- *  
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -42,13 +42,14 @@ extern "C"
 #include <limits.h>
 #include <inttypes.h>
 #include <assert.h>
+#include "tn_config.h"
 
 
 /**
  * Indicates that the function returns
  * a pointer to unaliased uninitalized memory
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
+#ifdef HAVE_FUNC_ATTRIBUTE_MALLOC
 #define UNALIASED  __attribute__((__malloc__))
 #else
 #define UNALIASED
@@ -57,7 +58,7 @@ extern "C"
 /**
  * Indicates that a function returns a non-NULL pointer
  */
-#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
+#ifdef HAVE_FUNC_ATTRIBUTE_RETURNS_NONNULL
 #define NOT_NULL __attribute__((__returns_nonnull__))
 #else
 #define NOT_NULL
@@ -67,7 +68,7 @@ extern "C"
  * Requires a warning if a result value
  * of the function is thrown away
  */
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_WARN_UNUSED_RESULT
 #define MUST_USE  __attribute__((__warn_unused_result__))
 #else
 #define MUST_USE
@@ -77,7 +78,7 @@ extern "C"
  * Indicates that a vararg function shall have NULL
  * at the end of varargs
  */
-#if __GNUC__ >= 4
+#ifdef HAVE_FUNC_ATTRIBUTE_SENTINEL
 #define LAST_ARG_NULL  __attribute__((__sentinel__))
 #else
 #define LAST_ARG_NULL
@@ -87,7 +88,7 @@ extern "C"
  * Indicates that no pointer arguments should
  * ever be passed NULL
  */
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)
+#ifdef HAVE_FUNC_ATTRIBUTE_NONNULL
 #define NO_NULL_ARGS  __attribute__ ((__nonnull__))
 #else
 #define NO_NULL_ARGS
@@ -101,7 +102,7 @@ extern "C"
  * given in its x'th argument, where each element has the size given in
  * the y'th argument
  */
-#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+#ifdef HAVE_FUNC_ATTRIBUTE_ALLOC_SIZE
 #define LIKE_MALLOC(_arg)                   \
     UNALIASED                               \
     __attribute__((__alloc_size__(_arg)))
@@ -130,7 +131,7 @@ extern "C"
  * and the format string is in the _x'th argument, and
  * the arguments start at _y
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
 #define LIKE_PRINTF(_x, _y)                             \
     __attribute__((__format__ (__printf__, _x, _y)))
 #else
@@ -142,7 +143,7 @@ extern "C"
  * and the format string is in the _x'th argument, and
  * the arguments start at _y
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
 #define LIKE_SCANF(_x, _y)                          \
     __attribute__((__format__ (__scanf__, _x, _y)))
 #else
@@ -154,7 +155,7 @@ extern "C"
  * and the format string is in the _x'th argument, and
  * the arguments start at _y
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
 #define LIKE_STRFTIME(_x)                               \
     __attribute__((__format__ (__strftime__, _x, 0)))
 #else
@@ -166,7 +167,7 @@ extern "C"
  * a printf/scanf/strftime format string that is transformed in some way
  * and returned by the function
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_FORMAT_ARG
 #define FORMAT_STRING(_x)                       \
     __attribute__((__format_arg__ (_x)))
 #else
@@ -178,7 +179,7 @@ extern "C"
  * Indicates that pointer arguments listed in
  * `_args` are never `NULL`
  */
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)
+#ifdef HAVE_FUNC_ATTRIBUTE_NONNULL
 #define NOT_NULL_ARGS(...)                      \
     __attribute__ ((__nonnull__ (__VA_ARGS__)))
 #else
@@ -190,7 +191,7 @@ extern "C"
  * Global state may be read but not modified. In particular,
  * that means a function cannot produce any observable side effects
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96)
+#ifdef HAVE_FUNC_ATTRIBUTE_PURE
 #define NO_SIDE_EFFECTS __attribute__((__pure__))
 #else
 #define NO_SIDE_EFFECTS
@@ -201,7 +202,7 @@ extern "C"
  * function is genuinely function, its result depending solely on its
  * arguments
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_CONST
 #define NO_SHARED_STATE  __attribute__((__const__))
 #else
 #define NO_SHARED_STATE
@@ -212,7 +213,7 @@ extern "C"
  * Weak symbol (a library symbol that may be overriden
  * by the application
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
+#ifdef HAVE_FUNC_ATTRIBUTE_WEAK
 #define WEAK_LINKAGE __attribute__((__weak__))
 #else
 #define WEAK_LINKAGE
@@ -225,11 +226,15 @@ extern "C"
  * A symbol is imported from a shared library
  * For POSIX systems these two modes are void.
  */
-#if __WIN32
+#ifdef HAVE_FUNC_ATTRIBUTE_DLLEXPORT
 #define DLL_EXPORT_LINKAGE __declspec(dllexport)
-#define DLL_IMPORT_LINKAGE __declspec(dllimport)
 #else
 #define DLL_EXPORT_LINKAGE
+#endif
+
+#ifdef HAVE_FUNC_ATTRIBUTE_DLLIMPORT
+#define DLL_IMPORT_LINKAGE __declspec(dllimport)
+#else
 #define DLL_IMPORT_LINKAGE
 #endif
 
@@ -242,7 +247,7 @@ extern "C"
  * Like `local`, but the symbol cannot be accessed by other
  * modules even indirectly (e.g. through a function pointer)
  */
-#if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR >= 3)) && __ELF__
+#ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
 #define LOCAL_LINKAGE                           \
     __attribute__ ((__visibility__ ("hidden")))
 #define INTERNAL_LINKAGE                            \
@@ -256,7 +261,7 @@ extern "C"
 /**
  * The symbol should not be used and triggers a warning
  */
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
+#ifdef HAVE_FUNC_ATTRIBUTE_DEPRECATED
 #define DEPRECATED __attribute__((__deprecated__))
 #else
 #define DEPRECATED
@@ -265,7 +270,7 @@ extern "C"
 /**
  * Marks a symbol as explicitly unused
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_UNUSED
 #define UNUSED __attribute__((__unused__))
 #else
 #define UNUSED
@@ -274,7 +279,7 @@ extern "C"
 /**
  * Marks a symbol as used
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_USED
 #define USED __attribute__((__used__))
 #else
 #define USED
@@ -287,18 +292,6 @@ extern "C"
  * and the level of support may be altered by command-line switches
  */
 /**@{*/
-
-/**
- * Restricted pointers are supported by GCC even in non-C99 mode
- *  but with an alternative keyword `__restrict__`
- */
-#if __STDC_VERSION__ < 199901L
-#if __GNUC__
-#define restrict __restrict__
-#else
-#define restrict
-#endif
-#endif
 
 /**
  * Defined in <assert.h> by C11-compliant systems.
@@ -325,7 +318,7 @@ extern "C"
  * C99 allows arrays to be declared in function declarations
  * with non-constant dimensions, depending on previous arguments.
  * It does not affect the produced code and no compile- or run-time
- * checks are usually performed, but the code intent is more evident 
+ * checks are usually performed, but the code intent is more evident
  * this way
  */
 #if (__STDC_VERSION__ >= 199901L && !__STDC_NO_VLA__) ||    \
@@ -334,7 +327,7 @@ extern "C"
 #else
 #define VAR_SIZE(_x)
 #endif
-    
+
 /**
  * For C11 systems, it is defined in a new header
  * <stdnoreturn.h>. For GCC in non-C11 mode define it via noreturn
@@ -348,11 +341,14 @@ extern "C"
 #define noreturn
 #endif
 
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
 #define CONSTRUCTOR static __attribute__((__constructor__))
+#define CONSTRUCTOR constructors_are_not_supported
+#endif
+
+#ifdef HAVE_FUNC_ATTRIBUTE_DESTRUCTOR
 #define DESTRUCTOR static __attribute__((__destructor__))
 #else
-#define CONSTRUCTOR constructors_are_not_supported
 #define DESTRUCTOR constructors_are_not_supported
 #endif
 

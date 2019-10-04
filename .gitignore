@@ -26,6 +26,15 @@
 
 doc/*
 build/*
+autom4te.cache/*
+Makefile.in
+aclocal.m4
+compile
+configure
+missing
+install-sh
+tn_config.h.in
+
 
 TAGS
 core
