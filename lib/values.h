@@ -85,12 +85,11 @@ tn_ref_le(const tn_ref *ref1, const tn_ref *ref2)
         return ref1->lo <= ref2->lo;
     else
         return (ref1->hi & TNRK_MASK) < (ref2->hi & TNRK_MASK);
-}    
+}
 
 #undef TNRK_MASK
 #undef TNRK_BIT_BASE
 
-union 
 
 #ifdef __cplusplus
 }

@@ -44,24 +44,26 @@ extern "C"
 #include <assert.h>
 #include "tn_config.h"
 
+#define annotation(_name, ...) \
+    TN_ANNOT_##_name(__VA_ARGS__)
 
 /**
  * Indicates that the function returns
  * a pointer to unaliased uninitalized memory
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_MALLOC
-#define UNALIASED  __attribute__((__malloc__))
+#define TN_ANNOT_unaliased(_x)  __attribute__((__malloc__))
 #else
-#define UNALIASED
+#define TN_ANNOT_unaliased(_x)
 #endif
 
 /**
  * Indicates that a function returns a non-NULL pointer
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_RETURNS_NONNULL
-#define NOT_NULL __attribute__((__returns_nonnull__))
+#define TN_ANNOT_not_null __attribute__((__returns_nonnull__))
 #else
-#define NOT_NULL
+#define TN_ANNOT_not_null
 #endif
 
 /**

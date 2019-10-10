@@ -1,6 +1,6 @@
 /**********************************************************************
  * Copyright (c) 2017 Artem V. Andreev
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -8,10 +8,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- *  
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- *  
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -35,29 +35,32 @@ extern "C"
 #endif
 
 #include "compiler.h"
-#include <gc.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <talloc.h>
 
-static inline MUST_USE NOT_NULL LIKE_MALLOC(1)
-void *tn_alloc(size_t sz)
+static inline void
+tn_bug_on(bool cond)
 {
-    void *obj = GC_MALLOC(sz);
-    assert(obj != NULL);
-    return obj;
+    if (!cond)
+        abort();
 }
 
-static inline MUST_USE NOT_NULL LIKE_MALLOC(1)
-void *tn_alloc_blob(size_t sz)
+static inline MUST_USE NOT_NULL LIKE_MALLOC(2)
+void *tn_alloc(const void *parent, size_t sz)
 {
-    void *obj = GC_MALLOC_ATOMIC(sz);
-    assert(obj != NULL);
+    void *obj = talloc_size(parent, sz);
+
+    tn_bug_on(obj == NULL);
     return obj;
 }
 
 static inline MUST_USE NOT_NULL
 void *tn_realloc(void *ptr, size_t newsz)
 {
-    void *obj = GC_REALLOC(ptr, newsz);
-    assert(obj != NULL);
+    void *obj = talloc_realloc(NULL, ptr, newsz);
+
+    tn_bug_on(obj == NULL);
     return obj;
 }
 
