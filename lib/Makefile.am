@@ -6,8 +6,10 @@ libtn_a_SOURCES = values.c
 
 TESTS = $(check_PROGRAMS)
 
-check_PROGRAMS = utils_ts
+check_PROGRAMS = libtn_unit_tests
 
-utils_ts_SOURCES = utils_ts.t
-utils_ts_CFLAGS = $(AM_CFLAGS) $(CHECK_CFLAGS)
-utils_ts_LDFLAGS = $(AM_LDFLAGS) $(CHECK_LDFLAGS)
+libtn_unit_tests_SOURCES = libtn_unit_tests.t
+libtn_unit_tests_CFLAGS = $(AM_CFLAGS) $(CHECK_CFLAGS)
+libtn_unit_tests_LDFLAGS = $(AM_LDFLAGS)
+libtn_unit_tests_LDADD = libtn.a $(CHECK_LIBS)
+
