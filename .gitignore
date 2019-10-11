@@ -36,6 +36,7 @@ install-sh
 tn_config.h.in
 depcomp
 ylwrap
+test-driver
 
 
 TAGS
