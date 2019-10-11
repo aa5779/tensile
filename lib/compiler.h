@@ -29,8 +29,8 @@
  *
  * @author Artem V. Andreev <artem@iling.spb.ru>
  */
-#ifndef COMPILER_H
-#define COMPILER_H 1
+#ifndef TNH__COMPILER_H
+#define TNH_COMPILER_H 1
 
 #ifdef __cplusplus
 extern "C"
@@ -330,7 +330,7 @@ extern "C"
  * checks are usually performed, but the code intent is more evident
  * this way
  */
-#if (__STDC_VERSION__ >= 199901L && !__STDC_NO_VLA__) ||    \
+#if (__STDC_VERSION__ >= 199901L && !defined(__STDC_NO_VLA__)) ||   \
     (defined(__GNUC__) && !__STRICT_ANSI__)
 #define TN_VAR_SIZE(_x) _x
 #else
@@ -391,4 +391,4 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
-#endif /* COMPILER_H */
+#endif /* TNH_COMPILER_H */
