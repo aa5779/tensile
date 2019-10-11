@@ -41,7 +41,7 @@ AX_GCC_FUNC_ATTRIBUTE([dllexport])
 AX_GCC_FUNC_ATTRIBUTE([dllimport])
 AX_GCC_FUNC_ATTRIBUTE([noreturn])
 
-AX_GCC_VAR_ATTRIBUTE([unused])
+AX_GCC_VAR_ATTRIBUTE([aligned])
 
 AC_C_RESTRICT
 

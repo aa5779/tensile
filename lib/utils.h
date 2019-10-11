@@ -37,21 +37,30 @@ extern "C"
 #include "compiler.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <talloc.h>
 
 static inline void
-tn_bug_on(bool cond)
+tn_bug_on(bool cond, const char *file, int line, const char *msg)
 {
-    if (!cond)
+    if (cond)
+    {
+        fprintf(stderr, "%s:%d: %s\n", file, line, msg);
         abort();
+    }
 }
 
-static inline MUST_USE NOT_NULL LIKE_MALLOC(2)
-void *tn_alloc(const void *parent, size_t sz)
-{
-    void *obj = talloc_size(parent, sz);
+#define TN_BUG_ON(_expr)                            \
+    tn_bug_on(_expr, __FILE__, __LINE__, #_expr)
 
-    tn_bug_on(obj == NULL);
+static inline TN_LIKE_MALLOC(3) TN_RESULT_IS_NOT_NULL
+void *
+tn_alloc_typed(const void *parent, const char *type, size_t sz,
+               int (*)
+{
+    void *obj = talloc_zero_size(parent, sz);
+
+    TN_BUG_ON(obj == NULL);
     return obj;
 }
 

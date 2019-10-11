@@ -44,26 +44,24 @@ extern "C"
 #include <assert.h>
 #include "tn_config.h"
 
-#define annotation(_name, ...) \
-    TN_ANNOT_##_name(__VA_ARGS__)
 
 /**
  * Indicates that the function returns
  * a pointer to unaliased uninitalized memory
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_MALLOC
-#define TN_ANNOT_unaliased(_x)  __attribute__((__malloc__))
+#define TN_RESULT_IS_UNALIASED __attribute__((__malloc__))
 #else
-#define TN_ANNOT_unaliased(_x)
+#define TN_RESULT_IS_UNALIASED
 #endif
 
 /**
  * Indicates that a function returns a non-NULL pointer
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_RETURNS_NONNULL
-#define TN_ANNOT_not_null __attribute__((__returns_nonnull__))
+#define TN_RESULT_IS_NOT_NULL __attribute__((__returns_nonnull__))
 #else
-#define TN_ANNOT_not_null
+#define TN_RESULT_IS_NOT_NULL
 #endif
 
 /**
@@ -71,9 +69,9 @@ extern "C"
  * of the function is thrown away
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_WARN_UNUSED_RESULT
-#define MUST_USE  __attribute__((__warn_unused_result__))
+#define TN_RESULT_IS_IMPORTANT  __attribute__((__warn_unused_result__))
 #else
-#define MUST_USE
+#define TN_RETURNS_IMPORTANT
 #endif
 
 /**
@@ -81,9 +79,9 @@ extern "C"
  * at the end of varargs
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_SENTINEL
-#define LAST_ARG_NULL  __attribute__((__sentinel__))
+#define TN_MUST_HAVE_SENTINEL  __attribute__((__sentinel__))
 #else
-#define LAST_ARG_NULL
+#define TN_MUST_HAVE_SENTINEL
 #endif
 
 /**
@@ -91,9 +89,9 @@ extern "C"
  * ever be passed NULL
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_NONNULL
-#define NO_NULL_ARGS  __attribute__ ((__nonnull__))
+#define TN_NO_NULL_ARGS  __attribute__ ((__nonnull__))
 #else
-#define NO_NULL_ARGS
+#define TN_NO_NULL_ARGS
 #endif
 
 /**
@@ -105,15 +103,21 @@ extern "C"
  * the y'th argument
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_ALLOC_SIZE
-#define LIKE_MALLOC(_arg)                   \
-    UNALIASED                               \
+#define TN_LIKE_MALLOC(_arg)                \
+    TN_RESULT_IS_UNALIASED                  \
+    TN_RESULT_IS_IMPORTANT                  \
     __attribute__((__alloc_size__(_arg)))
 #define LIKE_CALLOC(_arg1, _arg2)                    \
-    UNALIASED                                        \
+    TN_RESULT_IS_UNALIASED                           \
+    TN_RESULT_IS_IMPORTANT                           \
     __attribute__((__alloc_size__(_arg1, _arg2)))
 #else
-#define LIKE_MALLOC(_arg) UNALIASED
-#define LIKE_CALLOC(_arg1, _arg2) UNALIASED
+#define TN_LIKE_MALLOC(_arg) \
+    TN_RESULT_IS_UNALIASED \
+    TN_RESULT_IS_IMPORTANT
+#define TN_LIKE_CALLOC(_arg1, _arg2) \
+    TN_RESULT_IS_UNALIASED \
+    TN_RESULT_IS_IMPORTANT
 #endif
 
 /**
@@ -121,11 +125,11 @@ extern "C"
  * a pointer to memory, the alignment of which is given in its _x'th argument.
  */
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define LIKE_MEMALIGN(_arg1, _arg2)                       \
+#define TN_LIKE_MEMALIGN(_arg1, _arg2)                    \
     __attribute__((__alloc_align__(_arg1)))               \
-    LIKE_MALLOC(_arg2)
+    TN_LIKE_MALLOC(_arg2)
 #else
-#define LIKE_MEMALIGN(_arg1, _arg2) LIKE_MALLOC(_arg2)
+#define TN_LIKE_MEMALIGN(_arg1, _arg2) TN_LIKE_MALLOC(_arg2)
 #endif
 
 /**
@@ -134,10 +138,12 @@ extern "C"
  * the arguments start at _y
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
-#define LIKE_PRINTF(_x, _y)                             \
+#define TN_LIKE_PRINTF(_x, _y)                          \
     __attribute__((__format__ (__printf__, _x, _y)))
+#define TN_LIKE_VPRINTF(_x) TN_LIKE_PRINTF(_x, 0)
 #else
-#define LIKE_PRINTF(_x, _y)
+#define TN_LIKE_PRINTF(_x, _y)
+#define TN_LIKE_VPRINTF(_x)
 #endif
 
 /**
@@ -146,10 +152,12 @@ extern "C"
  * the arguments start at _y
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
-#define LIKE_SCANF(_x, _y)                          \
+#define TN_LIKE_SCANF(_x, _y)                       \
     __attribute__((__format__ (__scanf__, _x, _y)))
+#define TN_LIKE_VSCANF(_x) TN_LIKE_SCANF(_x, 0)
 #else
-#define LIKE_SCANF(_x, _y)
+#define TN_LIKE_SCANF(_x, _y)
+#define TN_LIKE_VSCANF(_x)
 #endif
 
 /**
@@ -158,10 +166,10 @@ extern "C"
  * the arguments start at _y
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
-#define LIKE_STRFTIME(_x)                               \
+#define TN_LIKE_STRFTIME(_x)                            \
     __attribute__((__format__ (__strftime__, _x, 0)))
 #else
-#define LIKE_STRFTIME(_x)
+#define TN_LIKE_STRFTIME(_x)
 #endif
 
 /**
@@ -170,10 +178,10 @@ extern "C"
  * and returned by the function
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_FORMAT_ARG
-#define FORMAT_STRING(_x)                       \
+#define TN_HAS_FORMAT_ARG(_x)                   \
     __attribute__((__format_arg__ (_x)))
 #else
-#define FORMAT_STRING(_x)
+#define TN_HAS_FORMAT_ARG(_x)
 #endif
 
 
@@ -182,21 +190,20 @@ extern "C"
  * `_args` are never `NULL`
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_NONNULL
-#define NOT_NULL_ARGS(...)                      \
+#define TN_NOT_NULL_ARGS(...)                   \
     __attribute__ ((__nonnull__ (__VA_ARGS__)))
 #else
-#define NOT_NULL_ARGS(...)
+#define TN_NOT_NULL_ARGS(...)
 #endif
-
 
 /**
  * Global state may be read but not modified. In particular,
  * that means a function cannot produce any observable side effects
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_PURE
-#define NO_SIDE_EFFECTS __attribute__((__pure__))
+#define TN_NO_SIDE_EFFECTS __attribute__((__pure__))
 #else
-#define NO_SIDE_EFFECTS
+#define TN_NO_SIDE_EFFECTS
 #endif
 
 /**
@@ -205,9 +212,9 @@ extern "C"
  * arguments
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_CONST
-#define NO_SHARED_STATE  __attribute__((__const__))
+#define TN_NO_SHARED_STATE  __attribute__((__const__))
 #else
-#define NO_SHARED_STATE
+#define TN_NO_SHARED_STATE
 #endif
 
 
@@ -216,9 +223,9 @@ extern "C"
  * by the application
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_WEAK
-#define WEAK_LINKAGE __attribute__((__weak__))
+#define TN_WEAK  __attribute__((__weak__))
 #else
-#define WEAK_LINKAGE
+#define TN_WEAK
 #endif
 
 /** @def DLL_EXPORT_LINKAGE
@@ -229,15 +236,15 @@ extern "C"
  * For POSIX systems these two modes are void.
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_DLLEXPORT
-#define DLL_EXPORT_LINKAGE __declspec(dllexport)
+#define TN_DLL_EXPORT  __declspec(dllexport)
 #else
-#define DLL_EXPORT_LINKAGE
+#define TN_DLL_EXPORT
 #endif
 
 #ifdef HAVE_FUNC_ATTRIBUTE_DLLIMPORT
-#define DLL_IMPORT_LINKAGE __declspec(dllimport)
+#define TN_DLL_IMPORT __declspec(dllimport)
 #else
-#define DLL_IMPORT_LINKAGE
+#define TN_DLL_IMPORT
 #endif
 
 /** @def LOCAL_LINKAGE
@@ -250,13 +257,13 @@ extern "C"
  * modules even indirectly (e.g. through a function pointer)
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
-#define LOCAL_LINKAGE                           \
+#define TN_LOCAL                                \
     __attribute__ ((__visibility__ ("hidden")))
-#define INTERNAL_LINKAGE                            \
+#define TN_INTERNAL                                 \
     __attribute__ ((__visibility__ ("internal")))
 #else
-#define LOCAL_LINKAGE
-#define INTERNAL_LINKAGE
+#define TN_LOCAL
+#define TN_INTERNAL
 #endif
 
 
@@ -264,27 +271,27 @@ extern "C"
  * The symbol should not be used and triggers a warning
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_DEPRECATED
-#define DEPRECATED __attribute__((__deprecated__))
+#define TN_DEPRECATED __attribute__((__deprecated__))
 #else
-#define DEPRECATED
+#define TN_DEPRECATED
 #endif
 
 /**
  * Marks a symbol as explicitly unused
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_UNUSED
-#define UNUSED __attribute__((__unused__))
+#define TN_UNUSED  __attribute__((__unused__))
 #else
-#define UNUSED
+#define TN_UNUSED
 #endif
 
 /**
  * Marks a symbol as used
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_USED
-#define USED __attribute__((__used__))
+#define TN_USED __attribute__((__used__))
 #else
-#define USED
+#define TN_USED
 #endif
 
 /**@}*/
@@ -311,9 +318,9 @@ extern "C"
  * define our own macro
  */
 #if __STDC_VERSION__ >= 199901L || (defined(__GNUC__) && !__STRICT_ANSI__)
-#define AT_LEAST(_x) static _x
+#define TN_AT_LEAST static
 #else
-#define AT_LEAST(_x) _x
+#define TN_AT_LEAST
 #endif
 
 /**
@@ -325,9 +332,9 @@ extern "C"
  */
 #if (__STDC_VERSION__ >= 199901L && !__STDC_NO_VLA__) ||    \
     (defined(__GNUC__) && !__STRICT_ANSI__)
-#define VAR_SIZE(_x) _x
+#define TN_VAR_SIZE(_x) _x
 #else
-#define VAR_SIZE(_x)
+#define TN_VAR_SIZE(_x)
 #endif
 
 /**
@@ -337,29 +344,45 @@ extern "C"
  */
 #if __STDC_VERSION__ >= 201112L
 #include <stdnoreturn.h>
-#elif     __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#elif  HAVE_FUNC_ATTRIBUTE_NORETURN
 #define noreturn __attribute__((__noreturn__))
 #else
 #define noreturn
 #endif
 
+#if __STDC_VERSION__ >= 201112L
+#include <stdalign.h>
+#else
+#if HAVE_VAR_ATTRIBUTE_ALIGNED
+#define alignas(_n) __attribute__((__aligned__ (_n)))
+#else
+#define alignas(_x) alignas_not_supported
+#endif
+#if defined(__GNUC__)
+#define alignof(_x) __alignof__(_x)
+#else
+#define alignof(_x) alignaof_not_supported
+#endif
+#endif
+
 #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
-#define CONSTRUCTOR static __attribute__((__constructor__))
-#define CONSTRUCTOR constructors_are_not_supported
+#define TN_CONSTRUCTOR static __attribute__((__constructor__))
+#else
+#define TN_CONSTRUCTOR constructors_are_not_supported
 #endif
 
 #ifdef HAVE_FUNC_ATTRIBUTE_DESTRUCTOR
-#define DESTRUCTOR static __attribute__((__destructor__))
+#define TN_DESTRUCTOR static __attribute__((__destructor__))
 #else
-#define DESTRUCTOR constructors_are_not_supported
+#define TN_DESTRUCTOR destructors_are_not_supported
 #endif
 
-#define GLOBAL_INIT(_type, _var, _code) \
-    _type _var;                         \
-    CONSTRUCTOR void _var##_init(void)  \
-    {                                   \
-        _code;                          \
-    }                                   \
+#define TN_GLOBAL_INIT(_type, _var, _code)      \
+    _type _var;                                 \
+    TNA_constructor void _var##_init(void)      \
+    {                                           \
+        _code;                                  \
+    }                                           \
     struct fake
 
 
