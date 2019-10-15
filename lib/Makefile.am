@@ -6,10 +6,14 @@ libtn_a_SOURCES = values.c
 
 TESTS = $(check_PROGRAMS)
 
-check_PROGRAMS = libtn_unit_tests
+check_PROGRAMS = libtn_utils_tests libtn_values_tests
 
-libtn_unit_tests_SOURCES = libtn_unit_tests.t
-libtn_unit_tests_CFLAGS = $(AM_CFLAGS) $(CHECK_CFLAGS)
-libtn_unit_tests_LDFLAGS = $(AM_LDFLAGS)
-libtn_unit_tests_LDADD = libtn.a $(CHECK_LIBS)
+libtn_utils_tests_SOURCES = libtn_utils_tests.t
+libtn_utils_tests_CFLAGS = $(TEST_CFLAGS)
+libtn_utils_tests_CPPFLAGS = $(TEST_CPPFLAGS)
+libtn_utils_tests_LDADD = libtn.a $(TEST_LDADD)
 
+libtn_values_tests_SOURCES = libtn_values_tests.t
+libtn_values_tests_CFLAGS = $(TEST_CFLAGS)
+libtn_values_tests_CPPFLAGS = $(TEST_CPPFLAGS)
+libtn_values_tests_LDADD = libtn.a $(TEST_LDADD)

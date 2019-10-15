@@ -73,8 +73,7 @@ meta { BEGIN(INITIAL); return TOK_META; }
 \. { BEGIN(INITIAL); return TOK_ADDRESS; }
 \# { BEGIN(INITIAL); return TOK_SIZEOF; }
 @ { BEGIN(INITIAL); return TOK_ASSIGN_POS; }
-\< { BEGIN(INITIAL); return TOK_START_NODE; }
-\/> { BEGIN(INITIAL); return TOK_END_NODE; }
+\% { BEGIN(INITIAL); return TOK_NODE_HEAD; }
 => { BEGIN(INITIAL); return TOK_ARROW; }
 
 {SP} { BEGIN(INITIAL); }

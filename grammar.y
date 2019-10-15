@@ -6,7 +6,6 @@ extern void yyerror(const char *msg);
 %}
 
 %token TOK_ID
-%token TOK_END_NODE
 
 %token TOK_LOCAL
 %token TOK_STATIC
@@ -16,7 +15,6 @@ extern void yyerror(const char *msg);
 %token TOK_INTRINSIC
 %token TOK_TERM
 %token TOK_RETURN
-%token TOK_CONTINUE
 %token TOK_ERROR
 %token TOK_META
 
@@ -36,10 +34,9 @@ extern void yyerror(const char *msg);
 %left '$'
 %left '^'
 %right TOK_NEW TOK_SPAWN
-%right TOK_UPLUS TOK_UMINUS TOK_DEFER TOK_DEREF TOK_MKSTRING TOK_SIZEOF TOK_ALL TOK_EACH TOK_ANCHOR TOK_BITINV TOK_NOT TOK_ERASE TOK_ASSIGN_POS TOK_MATCH TOK_MATCH_TYPE '['
+%right TOK_UPLUS TOK_UMINUS TOK_DEFER TOK_DEREF TOK_MKSTRING TOK_SIZEOF TOK_ALL TOK_EACH TOK_ANCHOR TOK_BITINV TOK_NOT TOK_ERASE TOK_ASSIGN_POS TOK_MATCH TOK_MATCH_TYPE '[' TOK_ADDRESS TOK_NODE_HEAD
 %precedence TOK_FUNCALL TOK_INDEX '.'
-%right TOK_ADDRESS
-%precedence TOK_INTEGER TOK_FLOAT TOK_CHAR TOK_STRING TOK_BYTESTRING TOK_START_NODE TOK_ABORT TOK_FAIL TOK_ARB TOK_BAL TOK_REM TOK_FENCE '{' '('
+%precedence TOK_INTEGER TOK_FLOAT TOK_CHAR TOK_STRING TOK_BYTESTRING TOK_ABORT TOK_CONTINUE TOK_FAIL TOK_ARB TOK_BAL TOK_REM TOK_FENCE '{' '('
 
 %%
 
@@ -53,7 +50,7 @@ definitions:            %empty
 
 definition:             qdefinition
         |               TOK_ERROR termhead
-        |               TOK_IMPORT module_id import_list
+        |               TOK_IMPORT module_expr import_list
         |               TOK_INTRINSIC TOK_ID
         |               TOK_META TOK_ID TOK_STRING
                         ;
@@ -122,8 +119,8 @@ expression:             expression '?' expression
         |               TOK_SPAWN expression
         |               '[' expression0 ']' expression %prec '['
         |               expression '.' TOK_ID %prec '.'
+        |               TOK_NODE_HEAD node
         |               literal
-        |               node
         |               atomic_pattern
         |               '(' expression ')'
                         ;
@@ -138,6 +135,21 @@ atomic_pattern:         TOK_ARB
         |               TOK_FAIL
         |               TOK_REM
         |               TOK_FENCE
+        |               TOK_CONTINUE
+        ;
+
+module_expr:            module_id
+        |               TOK_ID TOK_ASSIGN module_id module_inst0
+        ;
+
+module_inst0:           TOK_INDEX module_inst_list ']'
+        ;
+
+module_inst_list:       module_inst_item
+        |               module_inst_list ',' module_inst_item
+        ;
+
+module_inst_item:       module_id TOK_ARROW module_id
         ;
 
 module_id:              TOK_ID
@@ -154,7 +166,7 @@ import_specs:           import_spec
                         ;
 
 import_spec:            TOK_ID
-        |               TOK_ID TOK_ASSIGN TOK_ID
+        |               TOK_ID TOK_ARROW TOK_ID
         ;
 
 staticlocal0:           %empty
@@ -205,6 +217,25 @@ mappings:               mapping
 mapping:                key TOK_ARROW expression
                         ;
 
+node:                   key0 '{' node_content '}'
+                        ;
+
+key0:                   %empty
+        |               key
+                        ;
+
+node_content:           %empty
+        |               node_mappings
+        ;
+
+node_mappings:          node_mapping
+        |               node_mappings ',' node_mapping
+        ;
+
+node_mapping:           mapping
+        |               expression
+        ;
+
 key:                    TOK_ID
         |               TOK_STRING
         |               TOK_INTEGER
@@ -213,40 +244,7 @@ key:                    TOK_ID
         |               '(' expression ')'
                         ;
 
-node:                   TOK_START_NODE xname node_attributes node_content
-                        ;
 
-node_attributes:        %empty
-        |               node_attributes node_attribute
-                        ;
-
-node_attribute:         xname attr_eq xvalue
-                        ;
-
-node_content:           TOK_END_NODE
-        |               '>' expression TOK_START_NODE TOK_END_NODE
-                        ;
-
-xname:                  xncname ns_sep xncname
-        |               xncname
-                        ;
-
-xncname:                TOK_ID
-        |               TOK_STRING
-        |               '(' expression ')'
-                        ;
-
-xvalue:                 TOK_STRING
-        |               '(' expression ')'
-                        ;
-
-attr_eq:                '='
-        |               TOK_MATCH
-                        ;
-
-ns_sep:                 ':'
-        |               TOK_MATCH_TYPE
-                        ;
 
 typedecl:               TOK_ID typefunc
         |               TOK_TERM

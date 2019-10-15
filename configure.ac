@@ -43,6 +43,8 @@ AX_GCC_FUNC_ATTRIBUTE([noreturn])
 
 AX_GCC_VAR_ATTRIBUTE([aligned])
 
+AX_GCC_BUILTIN([__builtin_expect])
+
 AC_C_RESTRICT
 
 AC_CONFIG_FILES([Makefile lib/Makefile])

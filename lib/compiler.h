@@ -385,6 +385,13 @@ extern "C"
     }                                           \
     struct fake
 
+#ifdef HAVE___BUILTIN_EXPECT
+#define TN_LIKELY(_x) __builtin_expect(!!(_x), 1)
+#define TN_UNLIKELY(_x) __builtin_expect(!!(_x), 0)
+#else
+#define TN_LIKELY(_x) (_x)
+#define TN_UNLIKELY(_x) (_x)
+#endif
 
 /**@}*/
 

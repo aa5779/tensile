@@ -1,0 +1,218 @@
+#include "utils.h"
+
+static int ctx_destroy_count;
+static int child_destroy_count;
+
+typedef struct mem_context {
+    struct mem_child *child;
+} mem_context;
+
+typedef struct mem_child {
+    int field;
+} mem_child;
+
+typedef struct mem_context_flex {
+    struct mem_child_flex *child;
+} mem_context_flex;
+
+typedef struct mem_child_flex {
+    int count;
+    int flex[];
+} mem_child_flex;
+
+typedef struct mem_str_ctx {
+    char *str;
+} mem_str_ctx;
+
+static int mem_context_destroy(TN_UNUSED void *arg)
+{
+    ctx_destroy_count++;
+    return 0;
+}
+
+static int mem_child_destroy(TN_UNUSED void *arg)
+{
+    child_destroy_count++;
+    return 0;
+}
+
+static void copy_mem_child(tn_ptr_location loc)
+{
+    int f = ((mem_child *)*loc.loc)->field;
+    TN_ALLOC_TYPED(loc, mem_child);
+    ((mem_child *)*loc.loc)->field = f;
+}
+
+static int mem_context_flex_destroy(TN_UNUSED void *arg)
+{
+    ctx_destroy_count++;
+    return 0;
+}
+
+static int mem_child_flex_destroy(void *arg)
+{
+    child_destroy_count += ((mem_child_flex *)arg)->count;
+    return 0;
+}
+
+
+static int mem_str_ctx_destroy(TN_UNUSED void *arg)
+{
+    ctx_destroy_count++;
+    return 0;
+}
+
+#suite Utils
+
+#tcase Assert
+
+#test test_bug_on_ok
+      TN_BUG_ON(false);
+
+#test-exit(1) test_bug_on_abort
+      TN_BUG_ON(true);
+
+#tcase Memory
+
+#test test_new_free_global
+      mem_context *ctx = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      ck_assert_ptr_ne(ctx, NULL);
+      ck_assert_ptr_eq(ctx->child, NULL);
+      tn_free(TN_GLOC(ctx));
+      ck_assert_int_eq(ctx_destroy_count, 1);
+
+#test test_alloc_free_recursive
+      mem_context *ctx = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      ck_assert_ptr_eq(ctx->child, NULL);
+      TN_ALLOC_TYPED(TN_FLOC(ctx, child), mem_child);
+      ck_assert_ptr_ne(ctx->child, NULL);
+      ck_assert_int_eq(ctx->child->field, 0);
+      tn_free(TN_GLOC(ctx));
+      ck_assert_int_eq(ctx_destroy_count, 1);
+      ck_assert_int_eq(child_destroy_count, 1);
+
+#test test_alloc_free_shared
+      mem_context *ctx1 = NULL;
+      mem_context *ctx2 = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx1), mem_context);
+      TN_ALLOC_TYPED(TN_GLOC(ctx2), mem_context);
+      TN_ALLOC_TYPED(TN_FLOC(ctx1, child), mem_child);
+      tn_copy_ptr(TN_FLOC(ctx2, child), TN_FLOC(ctx1, child));
+      ck_assert_ptr_eq(ctx1->child, ctx2->child);
+      ck_assert(tn_is_shared_ptr(ctx1->child));
+      tn_free(TN_GLOC(ctx1));
+      ck_assert(!tn_is_shared_ptr(ctx2->child));
+      tn_free(TN_FLOC(ctx2, child));
+      ck_assert_ptr_eq(ctx2->child, NULL);
+      ck_assert_int_eq(child_destroy_count, 1);
+      tn_free(TN_GLOC(ctx2));
+      ck_assert_int_eq(child_destroy_count, 1);
+
+#test test_alloc_flex
+      mem_context_flex *ctx = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context_flex);
+      TN_ALLOC_TYPED_FLEX(TN_FLOC(ctx, child), mem_child_flex, flex, 2);
+      ctx->child->count = 2;
+      ck_assert_uint_eq(talloc_total_size(ctx->child),
+                        sizeof(*ctx->child) + 2 * sizeof(ctx->child->flex[0]));
+      tn_free(TN_GLOC(ctx));
+      ck_assert_int_eq(child_destroy_count, 2);
+
+#test test_alloc_move_shared
+      mem_context *ctx1 = NULL;
+      mem_context *ctx2 = NULL;
+      void *prev;
+      TN_ALLOC_TYPED(TN_GLOC(ctx1), mem_context);
+      TN_ALLOC_TYPED(TN_GLOC(ctx2), mem_context);
+      TN_ALLOC_TYPED(TN_FLOC(ctx1, child), mem_child);
+      prev = ctx1->child;
+      tn_move_ptr(TN_FLOC(ctx2, child), TN_FLOC(ctx1, child));
+      ck_assert_ptr_eq(ctx2->child, prev);
+      ck_assert_ptr_eq(ctx1->child, NULL);
+      ck_assert(!tn_is_shared_ptr(ctx2->child));
+      tn_free(TN_GLOC(ctx1));
+      tn_free(TN_FLOC(ctx2, child));
+      ck_assert_ptr_eq(ctx2->child, NULL);
+      ck_assert_int_eq(child_destroy_count, 1);
+      tn_free(TN_GLOC(ctx2));
+      ck_assert_int_eq(child_destroy_count, 1);
+
+#test test_copy_move_same
+      mem_context *ctx = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      tn_copy_ptr(TN_GLOC(ctx), TN_GLOC(ctx));
+      ck_assert(!tn_is_shared_ptr(ctx));
+      ck_assert_ptr_ne(ctx, NULL);
+      tn_move_ptr(TN_GLOC(ctx), TN_GLOC(ctx));
+      ck_assert_ptr_ne(ctx, NULL);
+      tn_free(TN_GLOC(ctx));
+
+#test-exit(1) test_copy_same_ctx
+      mem_context *ctx = NULL;
+      mem_context *ctx2 = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      tn_copy_ptr(TN_GLOC(ctx2), TN_GLOC(ctx));
+
+#test test_move_same_ctx
+      mem_context *ctx = NULL;
+      mem_context *ctx2 = NULL;
+      void *prev;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      prev = ctx;
+      tn_move_ptr(TN_GLOC(ctx2), TN_GLOC(ctx));
+      ck_assert_ptr_eq(ctx2, prev);
+      ck_assert_ptr_eq(ctx, NULL);
+      ck_assert(!tn_is_shared_ptr(ctx2));
+      tn_free(TN_GLOC(ctx2));
+
+#test test_strdup_null
+      char *s = NULL;
+      tn_strdup(TN_GLOC(s), NULL);
+      ck_assert_ptr_eq(s, NULL);
+
+#test test_alloc_trivial_typed
+      void *tst = NULL;
+      tn_alloc_typed(TN_GLOC(tst), NULL, 4, NULL);
+      ck_assert_ptr_ne(tst, NULL);
+      tn_free(TN_GLOC(tst));
+      ck_assert_ptr_eq(tst, NULL);
+
+#test test_alloc_append_str
+      mem_str_ctx *ctx = NULL;
+      static const char *str = "str";
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_str_ctx);
+      tn_strdup(TN_FLOC(ctx, str), str);
+      ck_assert_ptr_ne(ctx->str, str);
+      tn_strcat(TN_FLOC(ctx, str), "ing");
+      ck_assert_str_eq(ctx->str, "string");
+      tn_free(TN_GLOC(ctx));
+
+#test test_alloc_sprintf
+      mem_str_ctx *ctx = NULL;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_str_ctx);
+      tn_sprintf(TN_FLOC(ctx, str), "%s%d.%d", "*", 0, 1);
+      ck_assert_str_eq(ctx->str, "*0.1");
+      tn_free(TN_GLOC(ctx));
+
+#test test_cow
+      mem_context *ctx = NULL;
+      mem_context *ctx2 = NULL;
+      void *prev;
+      TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      TN_ALLOC_TYPED(TN_GLOC(ctx2), mem_context);
+      TN_ALLOC_TYPED(TN_FLOC(ctx, child), mem_child);
+      ctx->child->field = 0xdead;
+      prev = ctx->child;
+      tn_cow(TN_FLOC(ctx, child), copy_mem_child);
+      ck_assert_ptr_eq(ctx->child, prev);
+      tn_copy_ptr(TN_FLOC(ctx2, child), TN_FLOC(ctx, child));
+      tn_cow(TN_FLOC(ctx2, child), copy_mem_child);
+      ck_assert_ptr_ne(ctx2->child, prev);
+      ck_assert_ptr_eq(ctx->child, prev);
+      ck_assert(!tn_is_shared_ptr(ctx2->child));
+      ck_assert(!tn_is_shared_ptr(ctx->child));
+      ck_assert_int_eq(ctx->child->field, ctx2->child->field);
+      tn_free(TN_GLOC(ctx));
+      tn_free(TN_GLOC(ctx2));
