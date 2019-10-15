@@ -1,5 +1,13 @@
-#include <time.h>
+#include <sys/time.h>
 #include "values.h"
+
+static void
+init_random(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    srandom(tv.tv_sec ^ tv.tv_usec);
+}
 
 static tn_ref
 random_tn_ref(void)
@@ -11,6 +19,15 @@ random_tn_ref(void)
     ref.hi |= random();
     ref.hi &= ~(1ULL << (TNRK_BIT_BASE - 1));
     return ref;
+}
+
+static tn_range
+random_tn_range(void)
+{
+    tn_range r;
+    r.lo = (int32_t)(random() - RAND_MAX / 2);
+    r.hi = (int32_t)(r.lo + random() / 2);
+    return r;
 }
 
 #suite Values
@@ -95,5 +112,33 @@ random_tn_ref(void)
                     (uint64_t)random()};
       ck_assert(tn_ref_is_kind(ref, _i));
 
+#tcase Ranges
+
+#test-loop(0,100) test_range_rand_sanity
+      tn_range r = random_tn_range();
+      ck_assert(tn_range_valid(r));
+
+#test test_range_eq_refl
+      int64_t v = (int64_t)(random() - RAND_MAX / 2);
+      tn_range r = {v, v};
+      ck_assert(tn_range_eq(r, r));
+      ck_assert(tn_range_le(r, r));
+
+#test-loop(0,100) test_range_le_total
+      tn_range r1 = random_tn_range();
+      tn_range r2 = random_tn_range();
+      ck_assert(tn_range_le(r1, r2) || tn_range_le(r2, r1));
+
+#test-loop(0,100) test_range_span
+      tn_range r1 = random_tn_range();
+      tn_range r2 = random_tn_range();
+      tn_range span = tn_range_span(r1, r2);
+            TN_INTERNAL_ERROR("%d: [%d,%d] [%d,%d] -> [%d,%d]",
+                        _i, r1.lo, r1.hi, r2.lo, r2.hi, span.lo, span.hi);
+      ck_assert(tn_range_valid(span));
+      ck_assert(tn_range_subrange(r1, span));
+      ck_assert(tn_range_subrange(r2, span));
+
 #main-pre
-    srandom(time(NULL));
+    tcase_add_checked_fixture(tc1_1, init_random, NULL);
+    tcase_add_checked_fixture(tc1_2, init_random, NULL);

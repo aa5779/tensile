@@ -141,6 +141,111 @@ tn_ref_le(tn_ref ref1, tn_ref ref2)
 #undef TNRK_REL_BIT_BASE
 #endif
 
+typedef struct tn_range {
+    int32_t lo;
+    int32_t hi;
+} tn_range;
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_valid(tn_range r)
+{
+    return r.lo <= r.hi;
+}
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_contains(tn_range r, int32_t v)
+{
+    return v >= r.lo && v <= r.hi;
+}
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_subrange(tn_range r1, tn_range r2)
+{
+    return tn_range_contains(r2, r1.lo) && tn_range_contains(r2, r1.hi);
+}
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_disjoint(tn_range r1, tn_range r2)
+{
+    return r1.hi < r2.lo || r2.hi < r1.lo;
+}
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_eq(tn_range r1, tn_range r2)
+{
+    return r1.lo == r2.lo && r1.hi == r2.hi;
+}
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_le(tn_range r1, tn_range r2)
+{
+    return r1.lo < r2.lo || (r1.lo == r2.lo && r1.hi <= r2.hi);
+}
+
+static inline tn_range
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_min(tn_range r1, tn_range r2)
+{
+    return tn_range_le(r1, r2) ? r1 : r2;
+}
+
+static inline tn_range
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_max(tn_range r1, tn_range r2)
+{
+    return tn_range_le(r1, r2) ? r2 : r1;
+}
+
+static inline bool
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_connected(tn_range r1, tn_range r2)
+{
+    return tn_range_min(r1, r2).hi + 1 >= tn_range_max(r1, r2).lo;
+}
+
+static inline tn_range
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_span(tn_range r1, tn_range r2)
+{
+    return (tn_range){.lo = r1.lo < r2.lo ? r1.lo : r2.lo,
+            .hi = r1.hi > r2.hi ? r1.hi : r2.hi
+            };
+}
+
+static inline tn_range
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_intersect(tn_range r1, tn_range r2)
+{
+    return (tn_range){.lo = r1.lo < r2.lo ? r2.lo : r1.lo,
+            .hi = r1.hi > r2.hi ? r2.hi : r1.hi
+            };
+}
+
+static inline tn_range
+TN_RESULT_IS_IMPORTANT TN_NO_SHARED_STATE
+tn_range_exclude(tn_range r1, tn_range r2)
+{
+    if (tn_range_contains(r1, r2.lo))
+    {
+        return (tn_range){.lo = r1.lo,
+                .hi = r1.hi > r2.hi ? r1.hi : r2.lo - 1};
+    }
+    else if (tn_range_contains(r1, r2.hi))
+    {
+        return (tn_range){.lo = r2.hi + 1, .hi = r1.hi};
+    }
+    else
+    {
+        return r1;
+    }
+}
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
