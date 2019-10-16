@@ -1,3 +1,4 @@
+#include <time.h>
 #include "utils.h"
 
 static int ctx_destroy_count;
@@ -71,6 +72,33 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
 
 #test-exit(1) test_bug_on_abort
       TN_BUG_ON(true);
+
+#test-loop(0,100) test_random
+      int min;
+      int max;
+      int r;
+      srandom(time(NULL) ^ _i);
+      min = random() - RAND_MAX / 2;
+      max = min + random() / 2;
+      r = tn_random_int(min, max);
+      ck_assert_int_ge(r, min);
+      ck_assert_int_le(r, max);
+
+#test test_random_big
+      int j;
+      bool has_neg = false;
+      bool has_pos = false;
+      srandom(time(NULL));
+      for (j = 0; j < 100; j++)
+      {
+         int r = tn_random_int(INT32_MIN, INT32_MAX);
+         if (r < 0)
+            has_neg = true;
+         else
+            has_pos = true;
+      }
+      ck_assert(has_neg);
+      ck_assert(has_pos);
 
 #tcase Memory
 

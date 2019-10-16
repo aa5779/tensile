@@ -21,10 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **********************************************************************/
 
-/** @file
- * @brief various utility functions
- *
- * @author Artem V. Andreev <artem@iling.spb.ru>
+/** @node Utility functions
+ * @chapter Utility functions
  */
 #ifndef TNH_UTILS_H
 #define TNH_UTILS_H 1
@@ -156,15 +154,8 @@ tn_vsprintf(tn_ptr_location loc, const char *fmt, va_list args)
     tn_set_loc(loc, buf);
 }
 
-static inline void TN_LIKE_PRINTF(2, 3)
-tn_sprintf(tn_ptr_location loc, const char *fmt, ...)
-{
-    va_list args;
-
-    va_start(args, fmt);
-    tn_vsprintf(loc, fmt, args);
-    va_end(args);
-}
+extern void TN_LIKE_PRINTF(2, 3) tn_sprintf(tn_ptr_location loc,
+                                            const char *fmt, ...);
 
 static inline void
 tn_realloc(tn_ptr_location loc, size_t newsz)
@@ -243,6 +234,17 @@ tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
 
 #define TN_REALLOC_FLEX(_loc, _type, _flexfield, _newcnt)           \
     tn_realloc((_loc), TN_FLEX_SIZE(_type, _flexfield, _newcnt))
+
+static inline int
+TN_RESULT_IS_IMPORTANT
+tn_random_int(int min, int max)
+{
+    long d = (long)max - min + 1;
+    if (d > RAND_MAX)
+        return (int)(random() * (d / RAND_MAX) + min);
+    else
+        return (int)(random() % d + min);
+}
 
 #ifdef __cplusplus
 }

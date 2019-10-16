@@ -1,0 +1,25 @@
+\input texinfo
+@setfilename libtn.info
+@settitle libtn Internals
+@include version.texi
+@copying
+Copyright (c) Artem V. Andreev, @value{UPDATED}
+@end copying
+
+@contents
+
+@ifnottex
+@node Top
+@top libn Library
+
+
+@end ifnottex
+
+@include compiler.texi
+@include utils.texi
+@include values.texi
+
+@node Index
+@unnumbered Index
+
+@bye
