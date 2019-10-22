@@ -244,3 +244,54 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_int_eq(ctx->child->field, ctx2->child->field);
       tn_free(TN_GLOC(ctx));
       tn_free(TN_GLOC(ctx2));
+
+#test test_append_buffer_null
+      char *str = NULL;
+      tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(str), 0, 0);
+      char *app;
+
+      app = tn_buffer_append(&buf, 10);
+      ck_assert_ptr_eq(str, app);
+      ck_assert_ptr_ne(app, NULL);
+      ck_assert_uint_eq(buf.len, 10);
+      tn_free(TN_GLOC(str));
+
+#test test_append_buffer_do_append
+      char *str = NULL;
+      tn_buffer buf;
+      char *app;
+
+      tn_strdup(TN_GLOC(str), "buf");
+      buf = (tn_buffer)TN_BUFFER_INIT(TN_GLOC(str), sizeof("buf") - 1, 0);
+      app = tn_buffer_append(&buf, sizeof("fer"));
+      strcpy(app, "fer");
+      ck_assert_ptr_eq(app, str + sizeof("buf") - 1);
+      ck_assert_str_eq(str, "buffer");
+      ck_assert_uint_eq(buf.len, sizeof("buffer"));
+      tn_free(TN_GLOC(str));
+
+#test test_append_buffer_append_delta
+      char *str = NULL;
+      tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(str), 0, 0);
+      char *app;
+
+      app = tn_buffer_append(&buf, 1);
+      tn_buffer_append(&buf, 1);
+      ck_assert_ptr_eq(str, app);
+      tn_buffer_append(&buf, 1);
+      ck_assert_ptr_eq(str, app);
+      ck_assert_uint_eq(buf.len, 3);
+      ck_assert_uint_eq(buf.bufsize, 65);
+      tn_free(TN_GLOC(str));
+
+#test test_append_buffer_offset
+      mem_child_flex *flex = NULL;
+      int *app = NULL;
+      tn_buffer buf;
+      TN_ALLOC_TYPED_FLEX(TN_GLOC(flex), mem_child_flex, flex, 2);
+      buf = (tn_buffer)TN_BUFFER_INIT(TN_GLOC(flex), 2 * sizeof(int),
+                                      offsetof(mem_child_flex, flex));
+      app = TN_BUFFER_PUSH(&buf, int, 64);
+      ck_assert_uint_eq(buf.len, 66 * sizeof(int));
+      ck_assert_ptr_eq(app, &flex->flex[2]);
+      tn_free(TN_GLOC(flex));

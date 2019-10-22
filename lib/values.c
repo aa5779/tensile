@@ -1,8 +1,8 @@
-/** @file
- * @author Artem V. Andreev <artem@iling.spb.ru>
+/*
+ * Copyright (c) 2019 Artem V. Andreev
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "tn_config.h"
 #include "values.h"
-#include "values.h"
-

@@ -1,17 +1,30 @@
 \input texinfo
 @setfilename libtn.info
 @settitle libtn Internals
+@include common.texi
 @include version.texi
 @copying
-Copyright (c) Artem V. Andreev, @value{UPDATED}
+This manual is for libtn, version @value{VERSION},
+last updated @value{UPDATED}.
+
+Copyright @copyright{} 2019 Artem V. Andreev
+
+@mitlicense{}
+
 @end copying
+
+@titlepage
+@title Libtn Internals
+@author Artem V. Andreev
+@page
+@insertcopying
+@end titlepage
 
 @contents
 
 @ifnottex
 @node Top
-@top libn Library
-
+@top libtn Library
 
 @end ifnottex
 
@@ -21,5 +34,10 @@ Copyright (c) Artem V. Andreev, @value{UPDATED}
 
 @node Index
 @unnumbered Index
+
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex tp cp
+@printindex cp
 
 @bye

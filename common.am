@@ -16,6 +16,13 @@ LDADD_FOR_TESTS = $(CHECK_LIBS)
 	checkmk $< >$@
 
 TEXINFO_TEX = $(top_srcdir)/texinfo.tex
+AM_MAKEINFOFLAGS = -I$(top_srcdir)
+AM_MAKEINFOHTMLFLAGS = -I$(top_srcdir)
 
 .h.texi:
 	$(SED) -n -f $(top_srcdir)/docextract.sed $< >$@
+
+check-local: check-docs
+
+check-docs:
+	$(top_srcdir)/doc_check.sh $^

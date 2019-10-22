@@ -1,25 +1,8 @@
-/**********************************************************************
- * Copyright (c) 2017 Artem V. Andreev
+/*
+ * Copyright (c) 2017-2019 Artem V. Andreev
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-**********************************************************************/
+ * SPDX-License-Identifier: MIT
+ */
 
 /** @node Utility functions
  * @chapter Utility functions
@@ -41,19 +24,53 @@ extern "C"
 #include <talloc.h>
 
 #ifdef UNIT_TESTING
+/**@ifset INTERNALS */
 #define abort() exit(1)
+/**@end ifset */
 #endif
 
+/** @defmac TN_ARRAY_SIZE _arr
+ *  Returns the number of elements in an array @var{_arr}
+ *  @end defmac
+ */
 #define TN_ARRAY_SIZE(_arr) (sizeof(_arr) / sizeof(*(_arr)))
 
+/** @defmac TN_ARRAY_GET _arr _idx _defval
+ *  Returns @var{_idx}'th element in @var{_arr},
+ *  if it is less than the total number of elements;
+ *  otherwise return @var{_defval}
+ *  @end defmac
+ */
 #define TN_ARRAY_GET(_arr, _idx, _defval)                       \
     ((_idx) < TN_ARRAY_SIZE(_arr) ? (_arr)[_idx] : (_defval))
 
+/** @defmac TN_FLEX_SIZE _type _flexfield _count
+ *  Returns the size of a flexible structure @var{_type},
+ *  where its flexible member @var{_flexfield} contains
+ *  @var{_count} elements
+ *  @end defmac
+ */
 #define TN_FLEX_SIZE(_type, _flexfield, _count)                         \
-    (sizeof(_type) + (_count) * sizeof(((_type *)NULL)->_flexfield[0]))
+    (offsetof(_type, _flexfield) +                                      \
+     (_count) * sizeof(((_type *)NULL)->_flexfield[0]))
 
+/** @defmac TN_STRINGIFY _x
+ *  Returns its argument @var{_x} stringified.
+ *  If @var{_x} contains macros, they are expanded,
+ *  unlike the case of simple @code{#} operator
+ *  @end defmac
+ */
 #define TN_STRINGIFY(_x) #_x
 
+/** @deftypefun void tn_bug_on (bool @var{cond}, @
+ *                              const char *@var{file}, int line, @
+ *                              const char *@var{msg})
+ *  @anchor{tn_buf_on}
+ *  Aborts the program if @var{cond} is false, displaying a message
+ *  @var{file}:@var{line}: @var{msg}
+ *  @xref{TN_BUG_ON}
+ *  @end deftypefun
+ */
 static inline void
 tn_bug_on(bool cond, const char *file, int line, const char *msg)
 {
@@ -64,9 +81,31 @@ tn_bug_on(bool cond, const char *file, int line, const char *msg)
     }
 }
 
+/** @defmac TN_BUG_ON _expr
+ *  @anchor{TN_BUG_ON}
+ *
+ *  Aborts the program if @var{_expr} is false.
+ *  Prints the stringified form of @var{_expr} and
+ *  the current source code location
+ *  @xref{tn_bug_on}
+ *  @end defmac
+ */
 #define TN_BUG_ON(_expr)                            \
     tn_bug_on(_expr, __FILE__, __LINE__, #_expr)
 
+/** @defmac  tn_log_error _file _line _fmt ...
+ *  @defmacx tn_log_warning _file _line _fmt ...
+ *  @defmacx tn_fatal_error _file _line _fmt ...
+ *  @defmacx TN_INTERNAL_ERROR _fmt ...
+ *  Prints a formatted message related to @var{_file}:@var{_line}.
+ *  @code{tn_log_error} and @code{TN_INTERNAL_ERROR} produce
+ *  an error message, @code{tn_log_warning} produces a warning,
+ *  and @code{tn_fatal_error} produces a fatal error and aborts
+ *  the program. @code{TN_INTERNAL_ERROR} is a wrapper around
+ *  @code{tn_log_error} that uses the current source code location
+ *  as a relevant filename and line.
+ *  @end defmac
+ */
 #define tn_log_error(_file, _line, _fmt, ...)                           \
     ((void)fprintf(stderr, "error:%s:%d: " _fmt "\n", _file, _line,     \
                    __VA_ARGS__))
@@ -82,11 +121,23 @@ tn_bug_on(bool cond, const char *file, int line, const char *msg)
 #define TN_INTERNAL_ERROR(_fmt, ...)                    \
     tn_log_error(__FILE__, __LINE__, _fmt, __VA_ARGS__)
 
+/** @deftp Structure tn_ptr_location
+ * A data type to store pooled pointer information.
+ * @code{context} is a memory pool owning the pointer;
+ * @code{loc} is an address of a variable holding the pointer
+ * @end deftp
+ */
 typedef struct tn_ptr_location {
     const void *context;
     void **loc;
 } tn_ptr_location;
 
+/** @deftypefun void tn_free (tn_ptr_location @var{loc})
+ *  Releases the memory pointed to by @var{loc}.
+ *  The memory is detached from the context and if there's
+ *  no other contexts referring to it, it is freed
+ *  @end deftypefun
+ */
 static inline void
 tn_free(tn_ptr_location loc)
 {
@@ -96,6 +147,7 @@ tn_free(tn_ptr_location loc)
         *loc.loc = NULL;
     }
 }
+
 
 static inline void
 tn_set_loc(tn_ptr_location loc, void *ptr)
@@ -235,11 +287,32 @@ tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
 #define TN_REALLOC_FLEX(_loc, _type, _flexfield, _newcnt)           \
     tn_realloc((_loc), TN_FLEX_SIZE(_type, _flexfield, _newcnt))
 
+typedef struct tn_buffer {
+    size_t len;
+    size_t bufsize;
+    size_t offset;
+    tn_ptr_location location;
+} tn_buffer;
+
+#define TN_BUFFER_INIT(_loc, _len, _offset)     \
+    {.len = (_len),                             \
+            .offset = (_offset),                \
+            .location = (_loc)}
+
+
+TN_RESULT_IS_NOT_NULL TN_NO_NULL_ARGS
+extern void *tn_buffer_append(tn_buffer *buf, size_t sz);
+
+#define TN_BUFFER_PUSH(_buf, _type, _n)                         \
+    ((_type *)tn_buffer_append((_buf), sizeof(_type) * (_n)))
+
 static inline int
 TN_RESULT_IS_IMPORTANT
 tn_random_int(int min, int max)
 {
     long d = (long)max - min + 1;
+
+    TN_BUG_ON(d <= 0);
     if (d > RAND_MAX)
         return (int)(random() * (d / RAND_MAX) + min);
     else

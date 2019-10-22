@@ -1,25 +1,8 @@
-/**********************************************************************
- * Copyright (c) 2017 Artem V. Andreev
+/*
+ * Copyright (c) 2017-2019 Artem V. Andreev
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-**********************************************************************/
+ * SPDX-License-Identifier: MIT
+ */
 /** @node Compiler support
  * @chapter Compiler support
  *
@@ -28,7 +11,7 @@
  * This file offers compatibility wrappers around some of those extensions.
  *
  */
-#ifndef TNH__COMPILER_H
+#ifndef TNH_COMPILER_H
 #define TNH_COMPILER_H 1
 
 #ifdef __cplusplus
@@ -114,7 +97,7 @@ extern "C"
     TN_RESULT_IS_UNALIASED                  \
     TN_RESULT_IS_IMPORTANT                  \
     __attribute__((__alloc_size__(_arg)))
-#define LIKE_CALLOC(_arg1, _arg2)                    \
+#define TN_LIKE_CALLOC(_arg1, _arg2)                    \
     TN_RESULT_IS_UNALIASED                           \
     TN_RESULT_IS_IMPORTANT                           \
     __attribute__((__alloc_size__(_arg1, _arg2)))
@@ -218,9 +201,9 @@ extern "C"
  * @end defmac
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_PURE
-#define TN_NO_SIDE_EFFECTS __attribute__((__pure__))
+#define TN_NO_SIDE_EFFECTS TN_RESULT_IS_IMPORTANT __attribute__((__pure__))
 #else
-#define TN_NO_SIDE_EFFECTS
+#define TN_NO_SIDE_EFFECTS TN_RESULT_IS_IMPORTANT
 #endif
 
 /** @defmac TN_NO_SHARED_STATE
@@ -230,9 +213,9 @@ extern "C"
  * @end defmac
  */
 #ifdef HAVE_FUNC_ATTRIBUTE_CONST
-#define TN_NO_SHARED_STATE  __attribute__((__const__))
+#define TN_NO_SHARED_STATE TN_RESULT_IS_IMPORTANT __attribute__((__const__))
 #else
-#define TN_NO_SHARED_STATE
+#define TN_NO_SHARED_STATE TN_RESULT_IS_IMPORTANT
 #endif
 
 

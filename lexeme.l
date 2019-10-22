@@ -1,4 +1,9 @@
 %{
+/*
+ * Copyright (c) 2019 Artem V. Andreev
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ */
 #include "grammar.h"
 %}
 
