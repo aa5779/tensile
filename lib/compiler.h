@@ -169,7 +169,7 @@ extern "C"
 #define TN_LIKE_STRFTIME(_x)
 #endif
 
-/** @defmac TN_LIKE_FORMAT_ARG
+/** @defmac TN_HAS_FORMAT_ARG
  * Indicates that a _x'th argument to the function is
  * a printf/scanf/strftime format string that is transformed in some way
  * and returned by the function

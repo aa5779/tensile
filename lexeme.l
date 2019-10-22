@@ -16,7 +16,8 @@ arb { BEGIN(INITIAL); return TOK_ARB; }
 bal { BEGIN(FUNCALL); return TOK_BAL; }
 abort { BEGIN(INITIAL); return TOK_ABORT; }
 fail { BEGIN(INITIAL); return TOK_FAIL; }
-rem { BEGIN(INITIAL); return TOK_REM; }
+succeed { BEGIN(INITIAL); return TOK_SUCCEED; }
+spawn  { BEGIN(INITIAL); return TOK_SPAWN; }
 fence { BEGIN(FUNCALL); return TOK_FENCE; }
 continue { BEGIN(INITIAL); return TOK_CONTINUE; }
 return { BEGIN(INITIAL); return TOK_RETURN; }

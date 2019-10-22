@@ -65,7 +65,7 @@ extern "C"
 /** @deftypefun void tn_bug_on (bool @var{cond}, @
  *                              const char *@var{file}, int line, @
  *                              const char *@var{msg})
- *  @anchor{tn_buf_on}
+ *  @anchor{tn_bug_on}
  *  Aborts the program if @var{cond} is false, displaying a message
  *  @var{file}:@var{line}: @var{msg}
  *  @xref{TN_BUG_ON}
@@ -149,6 +149,10 @@ tn_free(tn_ptr_location loc)
 }
 
 
+/** @deftypefun void tn_set_loc (tn_ptr_location @var{loc}, void *@var{ptr})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_set_loc(tn_ptr_location loc, void *ptr)
 {
@@ -156,6 +160,13 @@ tn_set_loc(tn_ptr_location loc, void *ptr)
     *loc.loc = ptr;
 }
 
+/** @deftypefun void tn_alloc_typed (tn_ptr_location @var{loc}, @
+ *                                   const char *@var{type}, @
+ *                                   size_t @var{sz}, @
+ *                                   int (*@var{destructor})(void *))
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_alloc_typed(tn_ptr_location loc, const char *type, size_t sz,
                int (*destructor)(void *))
@@ -171,6 +182,10 @@ tn_alloc_typed(tn_ptr_location loc, const char *type, size_t sz,
     tn_set_loc(loc, obj);
 }
 
+/** @deftypefun void tn_alloc_raw (tn_ptr_location @var{loc}, size_t @var{sz})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_alloc_raw(tn_ptr_location loc, size_t sz)
 {
@@ -181,6 +196,11 @@ tn_alloc_raw(tn_ptr_location loc, size_t sz)
     tn_set_loc(loc, obj);
 }
 
+/** @deftypefun void tn_strdup (tn_ptr_location @var{loc}, @
+ *                              const char *@var{str})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_strdup(tn_ptr_location loc, const char *str)
 {
@@ -196,6 +216,12 @@ tn_strdup(tn_ptr_location loc, const char *str)
     }
 }
 
+/** @deftypefun void tn_vsprintf (tn_ptr_location @var{loc}, @
+ *                                const char *@var{fmt}, @
+ *                                va_list @var{args})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void TN_LIKE_VPRINTF(2)
 tn_vsprintf(tn_ptr_location loc, const char *fmt, va_list args)
 {
@@ -206,9 +232,20 @@ tn_vsprintf(tn_ptr_location loc, const char *fmt, va_list args)
     tn_set_loc(loc, buf);
 }
 
+/** @deftypefun void tn_sprintf (tn_ptr_location @var{loc}, @
+ *                               const char *@var{fmt}, @
+ *                               ...)
+ *  @undocumented
+ *  @end deftypefun
+ */
 extern void TN_LIKE_PRINTF(2, 3) tn_sprintf(tn_ptr_location loc,
                                             const char *fmt, ...);
 
+/** @deftypefun void tn_realloc(tn_ptr_location @var{loc}, @
+ *                              size_t @var{newsz})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_realloc(tn_ptr_location loc, size_t newsz)
 {
@@ -218,6 +255,11 @@ tn_realloc(tn_ptr_location loc, size_t newsz)
     *loc.loc = obj;
 }
 
+/** @deftypefun void tn_strcat(tn_ptr_location @var{loc}, @
+ *                             const char *@var{suffix})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_strcat(tn_ptr_location loc, const char *suffix)
 {
@@ -227,12 +269,21 @@ tn_strcat(tn_ptr_location loc, const char *suffix)
     strcat(*loc.loc, suffix);
 }
 
+/** @deftypefun bool tn_is_shared_ptr(const void *@var{ptr})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline bool TN_RESULT_IS_IMPORTANT
 tn_is_shared_ptr(const void *ptr)
 {
     return talloc_reference_count(ptr) == 1;
 }
 
+/** @deftypefun void tn_copy_ptr(tn_ptr_location @var{dst}, @
+ *                               tn_ptr_location @var{src})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_copy_ptr(tn_ptr_location dst, tn_ptr_location src)
 {
@@ -244,6 +295,11 @@ tn_copy_ptr(tn_ptr_location dst, tn_ptr_location src)
     }
 }
 
+/** @deftypefun void tn_move_ptr(tn_ptr_location @var{dst}, @
+ *                               tn_ptr_location @var{src})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_move_ptr(tn_ptr_location dst, tn_ptr_location src)
 {
@@ -256,6 +312,11 @@ tn_move_ptr(tn_ptr_location dst, tn_ptr_location src)
     }
 }
 
+/** @deftypefun void tn_cow(tn_ptr_location @var{loc}, @
+ *                          void (*@var{copier})(tn_ptr_location @var{loc}))
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline void
 tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
 {
@@ -264,29 +325,57 @@ tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
         copier(loc);
 }
 
+/** @defmac TN_GLOC _var
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_GLOC(_var)                           \
     ((tn_ptr_location){NULL, (void **)&(_var)})
 
+/** @defmac TN_FLOC _obj _field
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_FLOC(_obj, _field)                               \
     ((tn_ptr_location){(_obj), (void **)&((_obj)->_field)})
 
+/** @defmac TN_FREE _obj _field
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_FREE(_obj, _field)                       \
     tn_free_loc((_obj), (void **)&(_obj)->_field)
 
+/** @defmac TN_ALLOC_TYPED _loc _type
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_ALLOC_TYPED(_loc, _type)                                     \
     tn_alloc_typed((_loc), #_type,                                      \
                    sizeof(_type),                                       \
                    _type##_destroy)
 
+/** @defmac TN_ALLOC_TYPED_FLEX _loc _type _flexfield _count
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_ALLOC_TYPED_FLEX(_loc, _type, _flexfield, _count)            \
     tn_alloc_typed((_loc),                                              \
                    #_type "." #_flexfield "[" #_count "]",              \
                    TN_FLEX_SIZE(_type, _flexfield, (_count)),           \
                    _type##_destroy)
 
+/** @defmac TN_REALLOC_FLEX _loc _type _flexfield _newcnt
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_REALLOC_FLEX(_loc, _type, _flexfield, _newcnt)           \
     tn_realloc((_loc), TN_FLEX_SIZE(_type, _flexfield, _newcnt))
 
+/** @deftp Structure tn_buffer
+ *  @undocumented
+ *  @end deftp
+ */
 typedef struct tn_buffer {
     size_t len;
     size_t bufsize;
@@ -294,18 +383,34 @@ typedef struct tn_buffer {
     tn_ptr_location location;
 } tn_buffer;
 
+/** @defmac TN_BUFFER_INIT _loc _len _offset
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_BUFFER_INIT(_loc, _len, _offset)     \
     {.len = (_len),                             \
             .offset = (_offset),                \
             .location = (_loc)}
 
-
+/** @deftypefun void tn_buffer_append(tn_buffer @var{buf}, @
+ *                                    size_t @var{sz})
+ *  @undocumented
+ *  @end deftypefun
+ */
 TN_RESULT_IS_NOT_NULL TN_NO_NULL_ARGS
 extern void *tn_buffer_append(tn_buffer *buf, size_t sz);
 
+/** @defmac TN_BUFFER_PUSH _buf _type _n
+ *  @undocumented
+ *  @end defmac
+ */
 #define TN_BUFFER_PUSH(_buf, _type, _n)                         \
     ((_type *)tn_buffer_append((_buf), sizeof(_type) * (_n)))
 
+/** @deftypefun int tn_random_int (int @var{min}, int @var{max})
+ *  @undocumented
+ *  @end deftypefun
+ */
 static inline int
 TN_RESULT_IS_IMPORTANT
 tn_random_int(int min, int max)

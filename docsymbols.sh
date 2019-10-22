@@ -12,6 +12,7 @@ for f; do
                         '/@ifset INTERNALS/,/@end ifset/!{
                                  /static inline/,/{/s/^\([[:alpha:]_][[:alnum:]_]*\)(.*$/\1/p 
                                  s/^typedef \([[:alpha:]_][[:alnum:]_]* \)*\([[:alpha:]_][[:alnum:]_]*\) *[;{]$/\2/p
+                                 s/^enum \([[:alpha:]_][[:alnum:]_]*\).*$/\1/p
                                  /TNH_[[:alnum:]_]*_H/!s/^#define \([[:alpha:]_][[:alnum:]_]*\).*$/\1/p 
                         }' "$f"
             ;;

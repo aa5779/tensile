@@ -13,7 +13,7 @@ done
     {
         RC=0
         while read -r SYMBOL; do
-            ${GREP:-grep} -q -E "^ *@def(unx?|macx?|varx?|(tp|type(fun|var))x? +(\\{[^}]*\\}|[^[:space:]{}]+)) +$SYMBOL( |$)" \
+            ${GREP:-grep} -q -E "^ *@def(unx?|macx?|varx?|(tp|type(fun|var))x? +(\\{[^}]*\\}|[^[:space:]{}]+)) +$SYMBOL( |\(|\$)" \
                           $TEXIS ||
                 {
                     echo "Symbol $SYMBOL is not documented" >&2

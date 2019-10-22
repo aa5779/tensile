@@ -45,7 +45,7 @@ extern void yyerror(const char *msg);
        TOK_ASSIGN_POS TOK_MATCH TOK_MATCH_TYPE '[' TOK_ADDRESS TOK_NODE_HEAD
 %precedence TOK_FUNCALL TOK_INDEX '.'
 %precedence TOK_INTEGER TOK_FLOAT TOK_CHAR TOK_STRING TOK_BYTESTRING
-            TOK_ABORT TOK_CONTINUE TOK_FAIL TOK_ARB TOK_BAL TOK_REM
+            TOK_ABORT TOK_CONTINUE TOK_FAIL TOK_SUCCEED TOK_ARB TOK_BAL TOK_REM
             TOK_FENCE '{' '('
 
 %%
@@ -143,6 +143,7 @@ atomic_pattern:         TOK_ARB
         |               TOK_BAL
         |               TOK_ABORT
         |               TOK_FAIL
+        |               TOK_SUCCEED
         |               TOK_REM
         |               TOK_FENCE
         |               TOK_CONTINUE
