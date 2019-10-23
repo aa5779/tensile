@@ -102,6 +102,17 @@ generate_random_ranges(unsigned *n)
      ck_assert(!tn_charset_subset(n, cs, n - 1, cs));
      tn_free(TN_GLOC(cs));
 
+#test test_charset_subset_prefix
+     tn_charset_range r1;
+     tn_charset_range r2;
+
+     r1.lo = tn_random_int(0, INT32_MAX - 1);
+     r1.hi = tn_random_int(r1.lo, INT32_MAX - 1);
+     r2.lo = r1.lo;
+     r2.hi = tn_random_int(r1.hi + 1, INT32_MAX);
+     ck_assert(tn_charset_subset(1, &r1, 1, &r2));
+     ck_assert(!tn_charset_subset(1, &r2, 1, &r1));
+
 #test test_charset_min
      unsigned n;
      tn_charset_range *cs;
@@ -147,7 +158,7 @@ generate_random_ranges(unsigned *n)
      ck_assert_uint_eq(tn_charset_nth(n, cs, i), UNINAME_INVALID);
      tn_free(TN_GLOC(cs));
 
-#test test_union_self
+#test test_charset_union_self
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csu = NULL;
@@ -160,7 +171,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csu));
 
-#test test_union_empty_both
+#test test_charset_union_empty_both
       tn_charset_range *csu = NULL;
       tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csu), 0, 0);
 
@@ -168,7 +179,7 @@ generate_random_ranges(unsigned *n)
       ck_assert_uint_eq(dest.len, 0);
       ck_assert_ptr_eq(csu, NULL);
 
-#test test_union_empty_right
+#test test_charset_union_empty_right
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csu = NULL;
@@ -181,7 +192,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csu));
 
-#test test_union_empty_left
+#test test_charset_union_empty_left
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csu = NULL;
@@ -194,7 +205,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csu));
 
-#test test_union_full
+#test test_charset_union_full
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range full = {0, INT32_MAX};
@@ -208,7 +219,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csu));
 
-#test-loop(0,100) test_union_subset
+#test-loop(0,100) test_charset_union_subset
       unsigned n1;
       tn_charset_range *cs1;
       unsigned n2;
@@ -230,7 +241,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs2));
       tn_free(TN_GLOC(csu));
 
-#test-loop(0,100) test_union_comm
+#test-loop(0,100) test_charset_union_comm
       unsigned n1;
       tn_charset_range *cs1;
       unsigned n2;
@@ -251,7 +262,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(csu1));
       tn_free(TN_GLOC(csu2));
 
-#test test_intersect_self
+#test test_charset_intersect_self
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csu = NULL;
@@ -264,7 +275,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csu));
 
-#test test_intersect_empty_both
+#test test_charset_intersect_empty_both
       tn_charset_range *csi = NULL;
       tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
 
@@ -272,7 +283,7 @@ generate_random_ranges(unsigned *n)
       ck_assert_uint_eq(dest.len, 0);
       ck_assert_ptr_eq(csi, NULL);
 
-#test test_intersect_empty_right
+#test test_charset_intersect_empty_right
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csi = NULL;
@@ -284,7 +295,7 @@ generate_random_ranges(unsigned *n)
       ck_assert_ptr_eq(csi, NULL);
       tn_free(TN_GLOC(cs));
 
-#test test_intersect_empty_left
+#test test_charset_intersect_empty_left
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csi = NULL;
@@ -296,7 +307,7 @@ generate_random_ranges(unsigned *n)
       ck_assert_ptr_eq(csi, NULL);
       tn_free(TN_GLOC(cs));
 
-#test test_intersect_full
+#test test_charset_intersect_full
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range full = {0, INT32_MAX};
@@ -310,7 +321,71 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csi));
 
-#test-loop(0,100) test_intersect_subset
+#test test_charset_intersect_bisect
+      tn_charset_range r1;
+      tn_charset_range r2;
+      tn_charset_range *csi = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
+
+      r1.lo = tn_random_int(0, INT32_MAX);
+      r1.hi = tn_random_int(r1.lo, INT32_MAX);
+      r2.hi = tn_random_int(r1.lo, r1.hi);
+      r2.lo = r1.lo;
+      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
+      ck_assert_uint_eq(dest.len, sizeof(*csi));
+      ck_assert_uint_eq(csi->lo, r2.lo);
+      ck_assert_uint_eq(csi->hi, r2.hi);
+      tn_free(TN_GLOC(csi));
+
+#test-loop(0,10) test_charset_intersect_inner
+      tn_charset_range r1;
+      tn_charset_range r2;
+      tn_charset_range *csi = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
+
+      r1.lo = tn_random_int(0, INT32_MAX);
+      r1.hi = tn_random_int(r1.lo, INT32_MAX);
+      r2.lo = tn_random_int(r1.lo, r1.hi);
+      r2.hi = tn_random_int(r2.lo, r1.hi);
+      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
+      ck_assert_uint_eq(dest.len, sizeof(*csi));
+      ck_assert_uint_eq(csi->lo, r2.lo);
+      ck_assert_uint_eq(csi->hi, r2.hi);
+      tn_free(TN_GLOC(csi));
+
+#test-loop(0,10) test_charset_intersect_outer
+      tn_charset_range r1;
+      tn_charset_range r2;
+      tn_charset_range *csi = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
+
+      r1.lo = tn_random_int(0, INT32_MAX);
+      r1.hi = tn_random_int(r1.lo, INT32_MAX);
+      r2.lo = tn_random_int(r1.lo, r1.hi);
+      r2.hi = tn_random_int(r1.hi, INT32_MAX);
+      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
+      ck_assert_uint_eq(dest.len, sizeof(*csi));
+      ck_assert_uint_eq(csi->lo, r2.lo);
+      ck_assert_uint_eq(csi->hi, r1.hi);
+      tn_free(TN_GLOC(csi));
+
+#test test_charset_intersect_bisect2
+      tn_charset_range r1;
+      tn_charset_range r2;
+      tn_charset_range *csi = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
+
+      r1.lo = tn_random_int(0, INT32_MAX);
+      r1.hi = tn_random_int(r1.lo, INT32_MAX);
+      r2.lo = tn_random_int(r1.lo, r1.hi);
+      r2.hi = r1.hi;
+      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
+      ck_assert_uint_eq(dest.len, sizeof(*csi));
+      ck_assert_uint_eq(csi->lo, r2.lo);
+      ck_assert_uint_eq(csi->hi, r2.hi);
+      tn_free(TN_GLOC(csi));
+
+#test-loop(0,100) test_charset_intersect_subset
       unsigned n1;
       tn_charset_range *cs1;
       unsigned n2;
@@ -331,7 +406,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs2));
       tn_free(TN_GLOC(csi));
 
-#test-loop(0,100) test_intersect_comm
+#test-loop(0,100) test_charset_intersect_comm
       unsigned n1;
       tn_charset_range *cs1;
       unsigned n2;
@@ -352,7 +427,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(csi1));
       tn_free(TN_GLOC(csi2));
 
-#test test_complement_empty
+#test test_charset_complement_empty
       tn_charset_range *csc = NULL;
       tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
 
@@ -362,7 +437,7 @@ generate_random_ranges(unsigned *n)
       ck_assert_uint_eq(csc->hi, INT32_MAX);
       tn_free(TN_GLOC(csc));
 
-#test test_complement_full
+#test test_charset_complement_full
       tn_charset_range *csc = NULL;
       tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
 
@@ -371,7 +446,7 @@ generate_random_ranges(unsigned *n)
       ck_assert_uint_eq(dest.len, 0);
       ck_assert_ptr_eq(csc, NULL);
 
-#test-loop(0,100) test_complement_valid
+#test-loop(0,100) test_charset_complement_valid
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csc = NULL;
@@ -384,7 +459,31 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csc));
 
-#test-loop(0,100) test_complement_complement
+#test test_charset_complement_bisect
+      ucs4_t mid = tn_random_int(0, INT32_MAX - 1);
+      tn_charset_range pfx = {0, mid};
+      tn_charset_range *csc = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
+
+      tn_charset_generate_complement(1, &pfx, &dest);
+      ck_assert_uint_eq(dest.len, sizeof(*csc));
+      ck_assert_uint_eq(csc->lo, mid + 1);
+      ck_assert_uint_eq(csc->hi, INT32_MAX);
+      tn_free(TN_GLOC(csc));
+
+#test test_charset_complement_bisect2
+      ucs4_t mid = tn_random_int(1, INT32_MAX);
+      tn_charset_range pfx = {mid, INT32_MAX};
+      tn_charset_range *csc = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
+
+      tn_charset_generate_complement(1, &pfx, &dest);
+      ck_assert_uint_eq(dest.len, sizeof(*csc));
+      ck_assert_uint_eq(csc->lo, 0);
+      ck_assert_uint_eq(csc->hi, mid - 1);
+      tn_free(TN_GLOC(csc));
+
+#test-loop(0,100) test_charset_complement_complement
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csc = NULL;
@@ -401,7 +500,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(csc));
       tn_free(TN_GLOC(csc2));
 
-#test-loop(0,100) test_union_complement
+#test-loop(0,100) test_charset_union_complement
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csc = NULL;
@@ -421,7 +520,7 @@ generate_random_ranges(unsigned *n)
       tn_free(TN_GLOC(csc));
       tn_free(TN_GLOC(cscu));
 
-#test-loop(0,100) test_intersect_complement
+#test-loop(0,100) test_charset_intersect_complement
       unsigned n;
       tn_charset_range *cs;
       tn_charset_range *csc = NULL;
@@ -438,6 +537,110 @@ generate_random_ranges(unsigned *n)
       ck_assert_ptr_eq(csci, NULL);
       tn_free(TN_GLOC(cs));
       tn_free(TN_GLOC(csc));
+
+#test test_charset_empty_diff
+      unsigned n;
+      tn_charset_range *cs;
+      tn_charset_range *csd = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csd), 0, 0);
+
+      cs = generate_random_ranges(&n);
+      tn_charset_generate_diff(0, NULL, n, cs, &dest);
+      ck_assert_uint_eq(dest.len, 0);
+      ck_assert_ptr_eq(csd, NULL);
+      tn_free(TN_GLOC(cs));
+
+#test test_charset_diff_empty
+      unsigned n;
+      tn_charset_range *cs;
+      tn_charset_range *csd = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csd), 0, 0);
+
+      cs = generate_random_ranges(&n);
+      tn_charset_generate_diff(n, cs, 0, NULL, &dest);
+      ck_assert_uint_eq(dest.len, n * sizeof(*csd));
+      ck_assert(memcmp(csd, cs, dest.len) == 0);
+      tn_free(TN_GLOC(cs));
+      tn_free(TN_GLOC(csd));
+
+#test test_charset_full_diff
+      unsigned n;
+      tn_charset_range *cs;
+      tn_charset_range *csc = NULL;
+      tn_buffer destc = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
+      tn_charset_range *csd = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csd), 0, 0);
+
+      cs = generate_random_ranges(&n);
+      tn_charset_generate_complement(n, cs, &destc);
+      tn_charset_generate_diff(1, &(tn_charset_range){0, INT32_MAX},
+                               n, cs, &dest);
+      ck_assert_uint_eq(dest.len, destc.len);
+      ck_assert(memcmp(csc, csd, dest.len) == 0);
+      tn_free(TN_GLOC(cs));
+      tn_free(TN_GLOC(csc));
+      tn_free(TN_GLOC(csd));
+
+#test test_charset_diff_full
+      unsigned n;
+      tn_charset_range *cs;
+      tn_charset_range *csd = NULL;
+      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csd), 0, 0);
+
+      cs = generate_random_ranges(&n);
+      tn_charset_generate_diff(n, cs, 1, &(tn_charset_range){0, INT32_MAX},
+                               &dest);
+      ck_assert_uint_eq(dest.len, 0);
+      ck_assert_ptr_eq(csd, NULL);
+      tn_free(TN_GLOC(cs));
+
+#test-loop(0,100) test_charset_diff_intersect_compl
+      unsigned n1;
+      unsigned n2;
+      tn_charset_range *cs1;
+      tn_charset_range *cs2;
+      tn_charset_range *csc = NULL;
+      tn_charset_range *csi = NULL;
+      tn_charset_range *csd = NULL;
+      tn_buffer destc = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
+      tn_buffer desti = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
+      tn_buffer destd = TN_BUFFER_INIT(TN_GLOC(csd), 0, 0);
+
+      cs1 = generate_random_ranges(&n1);
+      cs2 = generate_random_ranges(&n2);
+
+      tn_charset_generate_diff(n1, cs1, n2, cs2, &destd);
+      ck_assert_uint_eq(destd.len % sizeof(*csd), 0);
+      ck_assert(tn_charset_valid(destd.len / sizeof(*csd), csd));
+      tn_charset_generate_complement(n2, cs2, &destc);
+      tn_charset_generate_intersect(n1, cs1, destc.len / sizeof(*csc),
+                                    csc, &desti);
+
+      ck_assert_uint_eq(destd.len, desti.len);
+      ck_assert(memcmp(csd, csi, destd.len) == 0);
+      tn_free(TN_GLOC(cs1));
+      tn_free(TN_GLOC(cs2));
+      tn_free(TN_GLOC(csc));
+      tn_free(TN_GLOC(csd));
+      tn_free(TN_GLOC(csi));
+
+#test test_charset_diff_subset
+      unsigned n1;
+      unsigned n2;
+      tn_charset_range *cs1;
+      tn_charset_range *cs2;
+      tn_charset_range *csd = NULL;
+      tn_buffer destd = TN_BUFFER_INIT(TN_GLOC(csd), 0, 0);
+
+      cs1 = generate_random_ranges(&n1);
+      cs2 = generate_random_ranges(&n2);
+
+      tn_charset_generate_diff(n1, cs1, n2, cs2, &destd);
+      ck_assert(tn_charset_subset(destd.len / sizeof(*csd), csd, n1, cs1));
+      ck_assert(!tn_charset_subset(n2, cs2, destd.len / sizeof(*csd), csd));
+      tn_free(TN_GLOC(cs1));
+      tn_free(TN_GLOC(cs2));
+      tn_free(TN_GLOC(csd));
 
 #main-pre
     tcase_add_checked_fixture(tc1_1, init_random, NULL);

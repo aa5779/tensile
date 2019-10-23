@@ -534,6 +534,25 @@ extern void tn_charset_generate_complement(size_t len,
                                            set[TN_VAR_SIZE(len)],
                                            tn_buffer *dest);
 
+/** @deftypefun bool tn_charset_generate_diff(size_t @var{len1}, @
+ *                                            const tn_charset_range @
+ *                                            @var{set1}[@var{len1}],
+ *                                            size_t @var{len2}, @
+ *                                            const tn_charset_range @
+ *                                            @var{set2}[@var{len2}], @
+ *                                            tn_buffer *@var{dest})
+ *  @undocumented
+ *  @end deftypefun
+ */
+TN_NOT_NULL_ARGS(5)
+extern void tn_charset_generate_diff(size_t len1,
+                                     const tn_charset_range     \
+                                     set1[TN_VAR_SIZE(len1)],
+                                     size_t len2,
+                                     const tn_charset_range     \
+                                     set2[TN_VAR_SIZE(len2)],
+                                     tn_buffer *dest);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -18,14 +18,17 @@ tn_charset_valid(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)])
 
     if (set[0].lo > set[0].hi)
         return false;
+
     limit = set[0].hi + 1;
 
     for (i = 1; i < len; i++)
     {
         if (set[i].lo <= limit)
             return false;
+
         if (set[i].lo > set[i].hi)
             return false;
+
         limit = set[i].hi + 1;
     }
     return true;
@@ -177,13 +180,13 @@ tn_charset_generate_intersect(size_t len1,
             set2++;
             len2--;
         }
-        if (len2 > 0 && set2->lo < set1->hi)
+        if (len2 > 0 && set2->lo <= set1->hi)
         {
             *TN_BUFFER_PUSH(dest, tn_charset_range, 1) =
                 (tn_charset_range){.lo =
                                    set2->lo > set1->lo ? set2->lo : set1->lo,
                                    .hi =
-                                   set2->hi > set1->hi ? set1->hi : set2->lo};
+                                   set2->hi > set1->hi ? set1->hi : set2->hi};
         }
         set1++;
         len1--;
@@ -224,5 +227,58 @@ tn_charset_generate_complement(size_t len,
     {
         *TN_BUFFER_PUSH(dest, tn_charset_range, 1) =
             (tn_charset_range){last + 1, INT32_MAX};
+    }
+}
+
+void
+tn_charset_generate_diff(size_t len1,
+                         const tn_charset_range set1[TN_VAR_SIZE(len1)],
+                         size_t len2,
+                         const tn_charset_range set2[TN_VAR_SIZE(len2)],
+                         tn_buffer *dest)
+{
+    tn_charset_range current;
+
+    if (len1 == 0)
+        return;
+    current = set1[0];
+    while (len1 > 0)
+    {
+        if (len2 == 0)
+        {
+            len1--;
+            set1++;
+            break;
+        }
+        if (set2->hi < current.lo)
+        {
+            set2++;
+            len2--;
+        }
+        else
+        {
+            if (set2->lo > current.lo)
+            {
+                *TN_BUFFER_PUSH(dest, tn_charset_range, 1) =
+                    (tn_charset_range){current.lo,
+                                       set2->lo > current.hi ? current.hi :
+                                       set2->lo - 1};
+            }
+            current.lo = set2->hi + 1;
+            if (current.lo > current.hi)
+            {
+                len1--;
+                set1++;
+                if (len1 > 0)
+                    current = set1[0];
+            }
+        }
+    }
+    if (current.lo <= current.hi)
+        *TN_BUFFER_PUSH(dest, tn_charset_range, 1) = current;
+    if (len1 > 0)
+    {
+        memcpy(TN_BUFFER_PUSH(dest, tn_charset_range, len1), set1,
+               sizeof(*set1) * len1);
     }
 }
