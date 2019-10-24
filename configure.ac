@@ -55,6 +55,7 @@ AX_GCC_BUILTIN([__builtin_expect])
 
 AC_C_RESTRICT
 
-AC_CONFIG_FILES([Makefile lib/Makefile])
+AC_CONFIG_FILES([Makefile compiler/Makefile \
+                 lib/Makefile lib/tests/Makefile])
 AC_CONFIG_HEADERS([tn_config.h])
 AC_OUTPUT

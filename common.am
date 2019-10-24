@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign info-in-builddir
 
 @CODE_COVERAGE_RULES@
 
-AM_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS)
+AM_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS) -I$(top_srcdir)/lib
 AM_CFLAGS = $(WARN_CFLAGS) $(CODE_COVERAGE_CFLAGS) \
 			$(TDB_CFLAGS) $(TALLOC_CFLAGS)
 AM_LDFLAGS = $(WARN_LDFLAGS) $(CODE_COVERAGE_LIBS) \
@@ -18,6 +18,8 @@ LDADD_FOR_TESTS = $(CHECK_LIBS)
 TEXINFO_TEX = $(top_srcdir)/texinfo.tex
 AM_MAKEINFOFLAGS = -I$(top_srcdir)
 AM_MAKEINFOHTMLFLAGS = -I$(top_srcdir)
+TEXI2DVI = texi2dvi -I $(abs_top_srcdir)
+
 
 .h.texi:
 	$(SED) -n -f $(top_srcdir)/docextract.sed $< >$@
