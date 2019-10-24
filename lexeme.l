@@ -50,7 +50,7 @@ meta { BEGIN(INITIAL); return TOK_META; }
 \.={SP} { BEGIN(INITIAL); return TOK_ASSIGN_DEFAULT; }
 !={SP} { BEGIN(INITIAL); return TOK_ASSIGN_EACH; }
 \?={SP} { BEGIN(INITIAL); return TOK_ASSIGN_MAP; }
-(\<\<|\>\>|<:|:>|\\\/|\/\\)={SP} { BEGIN(INITIAL); return TOK_ASSIGN_OP; }
+(\<\<|\>\>|<:|:>|\\\/|\/\\|\\)={SP} { BEGIN(INITIAL); return TOK_ASSIGN_OP; }
 \<\<{SP} { BEGIN(INITIAL); return TOK_LSHIFT; }
 \>\>{SP} { BEGIN(INITIAL); return TOK_RSHIFT; }
 \<={SP} { BEGIN(INITIAL); return TOK_LE; }
@@ -78,6 +78,8 @@ meta { BEGIN(INITIAL); return TOK_META; }
 ~ { BEGIN(INITIAL); return TOK_NOT; }
 \. { BEGIN(INITIAL); return TOK_ADDRESS; }
 \# { BEGIN(INITIAL); return TOK_SIZEOF; }
+\<: { BEGIN(INITIAL); return TOK_UMIN; }
+:> { BEGIN(INITIAL); return TOK_UMAX; }
 @ { BEGIN(INITIAL); return TOK_ASSIGN_POS; }
 \% { BEGIN(INITIAL); return TOK_NODE_HEAD; }
 => { BEGIN(INITIAL); return TOK_ARROW; }

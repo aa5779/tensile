@@ -43,6 +43,7 @@ extern void yyerror(const char *msg);
 %right TOK_UPLUS TOK_UMINUS TOK_DEFER TOK_DEREF TOK_MKSTRING TOK_SIZEOF
        TOK_ALL TOK_EACH TOK_ANCHOR TOK_BITINV TOK_NOT TOK_ERASE
        TOK_ASSIGN_POS TOK_MATCH TOK_MATCH_TYPE '[' TOK_ADDRESS TOK_NODE_HEAD
+       TOK_UMIN TOK_UMAX
 %precedence TOK_FUNCALL TOK_INDEX '.'
 %precedence TOK_INTEGER TOK_FLOAT TOK_CHAR TOK_STRING TOK_BYTESTRING
             TOK_ABORT TOK_CONTINUE TOK_FAIL TOK_SUCCEED TOK_ARB TOK_BAL TOK_REM
@@ -119,6 +120,8 @@ expression:             expression '?' expression
         |               TOK_ERASE expression
         |               TOK_BITINV expression
         |               TOK_NOT expression
+        |               TOK_UMIN expression
+        |               TOK_UMAX expression
         |               TOK_ASSIGN_POS expression
         |               TOK_MATCH expression
         |               TOK_MATCH_TYPE expression
