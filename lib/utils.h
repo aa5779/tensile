@@ -339,6 +339,13 @@ tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
 #define TN_FLOC(_obj, _field)                               \
     ((tn_ptr_location){(_obj), (void **)&((_obj)->_field)})
 
+/** @defmac TN_RLOC _base _var
+ *  @undocumented
+ *  @end defmac
+ */
+#define TN_RLOC(_base, _var)                        \
+    ((tn_ptr_location){(_base), (void **)&(_var)})
+
 /** @defmac TN_FREE _obj _field
  *  @undocumented
  *  @end defmac

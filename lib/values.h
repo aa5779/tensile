@@ -571,6 +571,12 @@ typedef struct tn_edit_item {
     ucs4_t ch;
 } tn_edit_item;
 
+/** @defmac TN_EDIT_INSERT
+ *  @undocumented
+ *  @end defmac
+ */
+#define TN_EDIT_INSERT (1ull << ((sizeof(size_t) * CHAR_BIT) - 1))
+
 /** @deftypefun size_t tn_edit_distance(size_t @var{len1}, @
  *                                      const uint32_t @
  *                                      @var{str1}[@var{len1}], @
@@ -585,6 +591,57 @@ extern size_t tn_edit_distance(size_t len1,
                                const uint32_t str1[TN_VAR_SIZE(len1)],
                                size_t len2,
                                const uint32_t str2[TN_VAR_SIZE(len2)]);
+
+#ifndef TN_DEBUG_DISABLED
+/** @deftypevar size_t tn_edit_seq_memory_utilization
+ *  @undocumented
+ *  @end deftypevar
+ */
+extern size_t tn_edit_seq_memory_utilization;
+#endif
+
+
+/** @deftypefun bool tn_edit_seq_valid(size_t @var{len}, @
+ *                                     const tn_edit_item @var{seq}[@var{len}])
+ *  @undocumented
+ *  @end deftypefun
+ */
+TN_NO_SHARED_STATE
+extern bool tn_edit_seq_valid(size_t len,
+                              const tn_edit_item seq[TN_VAR_SIZE(len)]);
+
+/** @deftypefun size_t tn_edit_generate_sequence(size_t @var{len1}, @
+ *                                               const uint32_t @
+ *                                               @var{str1}[@var{len1}], @
+ *                                               size_t @var{len2}, @
+ *                                               const uint32_t @
+ *                                               @var{str2}[@var{len2}],
+ *                                               tn_buffer *@var{dest})
+ *  @undocumented
+ *  @end deftypefun
+ */
+extern void tn_edit_generate_sequence(size_t len1,
+                                      const uint32_t str1[TN_VAR_SIZE(len1)],
+                                      size_t len2,
+                                      const uint32_t str2[TN_VAR_SIZE(len2)],
+                                      tn_buffer *dest);
+
+/** @deftypefun size_t tn_edit_apply_sequence(size_t @var{len}, @
+ *                                            const uint32_t @
+ &                                            @var{str}[@var{len}], @
+ *                                            size_t @var{editlen}, @
+ *                                            const tn_edit_item @
+ *                                            @var{edit}[@var{editlen}],
+ *                                            tn_buffer *@var{dest})
+ *  @undocumented
+ *  @end deftypefun
+ */
+extern void tn_edit_apply_sequence(size_t len,
+                                   const uint32_t str[TN_VAR_SIZE(len)],
+                                   size_t editlen,
+                                   const tn_edit_item \
+                                   edit[TN_VAR_SIZE(editlen)],
+                                   tn_buffer *dest);
 
 #ifdef __cplusplus
 }
