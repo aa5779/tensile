@@ -17,14 +17,14 @@ generate_random_ranges(unsigned *n)
     ucs4_t min = 0;
     ucs4_t max;
     tn_charset_range *dest = NULL;
-    tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(dest), 0, 0);
 
     *n = (unsigned)tn_random_int(1, MAX_CS_RANGES);
     max = INT32_MAX - 2 * (*n - 1);
+    tn_alloc_raw(TN_GLOC(dest), sizeof(*dest) * (*n));
 
     for (i = 0; i < *n; i++)
     {
-        tn_charset_range *r = TN_BUFFER_PUSH(&buf, tn_charset_range, 1);
+        tn_charset_range *r = &dest[i];
         r->lo = (ucs4_t)tn_random_int(min, max);
         r->hi = (ucs4_t)tn_random_int(r->lo, max);
         min = r->hi + 2;
@@ -152,10 +152,10 @@ generate_random_ranges(unsigned *n)
      ck_assert_uint_gt(card, 0);
      i = tn_random_int(0, card - 1);
      ch = tn_charset_nth(n, cs, i);
-     ck_assert_uint_ne(ch, UNINAME_INVALID);
+     ck_assert_uint_ne(ch, TN_INVALID_CHAR);
      ck_assert(tn_charset_contains(n, cs, ch));
      i = tn_random_int(card, INT32_MAX);
-     ck_assert_uint_eq(tn_charset_nth(n, cs, i), UNINAME_INVALID);
+     ck_assert_uint_eq(tn_charset_nth(n, cs, i), TN_INVALID_CHAR);
      tn_free(TN_GLOC(cs));
 
 #test test_charset_union_self

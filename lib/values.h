@@ -18,7 +18,6 @@ extern "C"
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unitypes.h>
-#include <uniname.h>
 #include "utils.h"
 
 /** @deftp Enum tn_value_type
@@ -383,6 +382,12 @@ tn_range_exclude(tn_range r1, tn_range r2)
  *  @section Charsets
  */
 
+/** @defmac TN_INVALID_CHAR
+ *  Impossible Unicode character
+ *  @end defmac
+ */
+#define TN_INVALID_CHAR UINT32_MAX
+
 /** @deftp Struct tn_charset_range
  *  @undocumented
  *  @end deftp
@@ -447,7 +452,7 @@ TN_NO_SHARED_STATE
 static inline ucs4_t
 tn_charset_min(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)])
 {
-    return len == 0 ? UNINAME_INVALID : set[0].lo;
+    return len == 0 ? TN_INVALID_CHAR : set[0].lo;
 }
 
 /** @deftypefun ucs4_t tn_charset_max(size_t @var{len}, @
@@ -460,7 +465,7 @@ TN_NO_SHARED_STATE
 static inline ucs4_t
 tn_charset_max(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)])
 {
-    return len == 0 ? UNINAME_INVALID : set[len - 1].hi;
+    return len == 0 ? TN_INVALID_CHAR : set[len - 1].hi;
 }
 
 /** @deftypefun bool tn_charset_subset(size_t @var{sublen}, @
@@ -552,6 +557,25 @@ extern void tn_charset_generate_diff(size_t len1,
                                      const tn_charset_range     \
                                      set2[TN_VAR_SIZE(len2)],
                                      tn_buffer *dest);
+
+/** @node Edits
+ *  @section edits
+ */
+
+/** @deftypefun size_t tn_edit_distance(size_t @var{len1}, @
+ *                                      const uint32_t @
+ *                                      @var{str1}[@var{len1}], @
+ *                                      size_t @var{len2}, @
+ *                                      const uint32_t @
+ *                                      @var{str2}[@var{len2}])
+ *  @undocumented
+ *  @end deftypefun
+ */
+TN_NO_SHARED_STATE
+extern size_t tn_edit_distance(size_t len1,
+                               const uint32_t str1[TN_VAR_SIZE(len1)],
+                               size_t len2,
+                               const uint32_t str2[TN_VAR_SIZE(len2)]);
 
 #ifdef __cplusplus
 }

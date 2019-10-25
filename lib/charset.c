@@ -73,7 +73,7 @@ tn_charset_nth(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)],
             return set->lo + i;
         i -= set->hi - set->lo + 1;
     }
-    return UNINAME_INVALID;
+    return TN_INVALID_CHAR;
 }
 
 bool
@@ -157,13 +157,11 @@ tn_charset_generate_intersect(size_t len1,
     {
         if (set2->lo > set1->lo)
         {
-            const tn_charset_range *tmpset;
-            size_t tmplen;
+            const tn_charset_range *tmpset = set2;
+            size_t tmplen = len2;
 
-            tmpset = set2;
             set2 = set1;
             set1 = tmpset;
-            tmplen = len2;
             len2 = len1;
             len1 = tmplen;
         }
