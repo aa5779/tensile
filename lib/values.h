@@ -562,6 +562,15 @@ extern void tn_charset_generate_diff(size_t len1,
  *  @section edits
  */
 
+/** @deftp Struct tn_edit_item
+ *  Edit sequence element
+ *  @end deftp
+ */
+typedef struct tn_edit_item {
+    size_t pos;
+    ucs4_t ch;
+} tn_edit_item;
+
 /** @deftypefun size_t tn_edit_distance(size_t @var{len1}, @
  *                                      const uint32_t @
  *                                      @var{str1}[@var{len1}], @

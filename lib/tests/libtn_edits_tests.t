@@ -78,5 +78,51 @@ generate_random_string(unsigned *n)
     ck_assert_uint_eq(dist, len1 - len2);
     tn_free(TN_GLOC(str));
 
+#test-loop(0,100) test_edit_subst_single
+    unsigned len;
+    uint32_t *str;
+    uint32_t *str2 = NULL;
+    unsigned pos;
+
+    str = generate_random_string(&len);
+    pos = tn_random_int(0, len - 1);
+    tn_alloc_raw(TN_GLOC(str2), len * sizeof(*str2));
+    memcpy(str2, str, len * sizeof(*str2));
+    str2[pos] ^= 1;
+    ck_assert_uint_eq(tn_edit_distance(len, str, len, str2), 1);
+    tn_free(TN_GLOC(str));
+    tn_free(TN_GLOC(str2));
+
+#test-loop(0,100) test_edit_ins_single
+    unsigned len;
+    uint32_t *str;
+    uint32_t *str2 = NULL;
+    unsigned pos;
+
+    str = generate_random_string(&len);
+    pos = tn_random_int(0, len);
+    tn_alloc_raw(TN_GLOC(str2), (len + 1) * sizeof(*str2));
+    memcpy(str2, str, pos * sizeof(*str2));
+    memcpy(str2 + pos + 1, str + pos, (len - pos) * sizeof(*str2));
+    str2[pos] = tn_random_int(0, INT32_MAX);
+    ck_assert_uint_eq(tn_edit_distance(len, str, len + 1, str2), 1);
+    tn_free(TN_GLOC(str));
+    tn_free(TN_GLOC(str2));
+
+#test-loop(0,100) test_edit_del_single
+    unsigned len;
+    uint32_t *str;
+    uint32_t *str2 = NULL;
+    unsigned pos;
+
+    str = generate_random_string(&len);
+    pos = tn_random_int(0, len - 1);
+    tn_alloc_raw(TN_GLOC(str2), len * sizeof(*str2));
+    memcpy(str2, str, pos * sizeof(*str2));
+    memcpy(str2 + pos, str + pos + 1, (len - pos) * sizeof(*str2));
+    ck_assert_uint_eq(tn_edit_distance(len, str, len - 1, str2), 1);
+    tn_free(TN_GLOC(str));
+    tn_free(TN_GLOC(str2));
+
 #main-pre
     tcase_add_checked_fixture(tc1_1, init_random, NULL);
