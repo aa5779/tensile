@@ -124,6 +124,10 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(str2));
 
+#test test_edit_seq_invalid
+    ck_assert(!tn_edit_seq_valid(2, (tn_edit_item[]){{1, 0}, {0, 0}}));
+    ck_assert(!tn_edit_seq_valid(2, (tn_edit_item[]){{1, 0}, {1, 0}}));
+
 #test test_edit_seq_self
     unsigned len;
     uint32_t *str;
@@ -346,6 +350,48 @@ generate_random_string(unsigned *n)
                            items, &dest2);
     ck_assert_uint_eq(dest2.len, len2 * sizeof(*str3));
     ck_assert(memcmp(str3, str2, len2 * sizeof(*str3)) == 0);
+    tn_free(TN_GLOC(str1));
+    tn_free(TN_GLOC(str2));
+    tn_free(TN_GLOC(str3));
+    tn_free(TN_GLOC(items));
+
+#test-loop(0,100) test_edit_apply_single_subst
+    unsigned len;
+    uint32_t *str;
+    uint32_t *str2 = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(str2), 0, 0);
+    unsigned pos;
+    ucs4_t ch;
+
+    str = generate_random_string(&len);
+    pos = tn_random_int(0, len - 1);
+    ch = tn_random_int(0, INT32_MAX);
+    tn_edit_apply_sequence(len, str, 1, &(tn_edit_item){pos, ch}, &dest);
+    str[pos] = ch;
+    ck_assert_uint_eq(dest.len, len * sizeof(*str2));
+    ck_assert(memcmp(str2, str, len * sizeof(*str2)) == 0);
+    tn_free(TN_GLOC(str));
+    tn_free(TN_GLOC(str2));
+
+#test-loop(0,100) test_edit_apply_prefix
+    unsigned len1;
+    uint32_t *str1;
+    unsigned len2;
+    uint32_t *str2;
+    unsigned newlen;
+    tn_edit_item *items = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(items), 0, 0);
+    uint32_t *str3 = NULL;
+    tn_buffer dest2 = TN_BUFFER_INIT(TN_GLOC(str3), 0, 0);
+
+    str1 = generate_random_string(&len1);
+    str2 = generate_random_string(&len2);
+    tn_edit_generate_sequence(len1, str1, len2, str2, &dest);
+    newlen = tn_random_int(0, len1 - 1);
+    tn_edit_apply_sequence(newlen, str1, dest.len / sizeof(*items),
+                           items, &dest2);
+    ck_assert_uint_lt(dest2.len, len2 * sizeof(*str3));
+    ck_assert(memcmp(str3, str2, dest2.len) == 0);
     tn_free(TN_GLOC(str1));
     tn_free(TN_GLOC(str2));
     tn_free(TN_GLOC(str3));

@@ -133,10 +133,29 @@ random_tn_range(void)
       ck_assert(tn_range_valid(r));
 
 #test test_range_eq_refl
-      int64_t v = (int64_t)(random() - RAND_MAX / 2);
+      int v = tn_random_int(INT32_MIN, INT32_MAX);
       tn_range r = {v, v};
       ck_assert(tn_range_eq(r, r));
+
+#test test_range_le_refl
+      int v = tn_random_int(INT32_MIN, INT32_MAX);
+      tn_range r = {v, v};
       ck_assert(tn_range_le(r, r));
+
+#test test_range_subrange_refl
+      int v = tn_random_int(INT32_MIN, INT32_MAX);
+      tn_range r = {v, v};
+      ck_assert(tn_range_subrange(r, r));
+
+#test test_range_connected_refl
+      int v = tn_random_int(INT32_MIN, INT32_MAX);
+      tn_range r = {v, v};
+      ck_assert(tn_range_connected(r, r));
+
+#test test_range_disjoint_antirefl
+      int v = tn_random_int(INT32_MIN, INT32_MAX);
+      tn_range r = {v, v};
+      ck_assert(!tn_range_disjoint(r, r));
 
 #test-loop(0,100) test_range_le_total
       tn_range r1 = random_tn_range();
@@ -151,7 +170,7 @@ random_tn_range(void)
       ck_assert(tn_range_subrange(r1, span));
       ck_assert(tn_range_subrange(r2, span));
 
-#test test_range_max
+#test test_range_complete
       tn_range all = {INT32_MIN, INT32_MAX};
       tn_range r = random_tn_range();
       ck_assert(tn_range_le(all, r));
@@ -176,6 +195,48 @@ random_tn_range(void)
       ck_assert(tn_range_eq(tn_range_exclude(r3, r2), r1));
       ck_assert(tn_range_eq(tn_range_exclude(r1, r2), r1));
       ck_assert(tn_range_eq(tn_range_exclude(r2, r1), r2));
+
+#test test_range_exclude_subrange_right
+      tn_range r1 = random_tn_range();
+      tn_range r2;
+      tn_range rx;
+
+      r2.lo = tn_random_int(r1.lo, r1.hi);
+      r2.hi = r1.hi;
+      rx = tn_range_exclude(r1, r2);
+      ck_assert(!tn_range_subrange(r2, rx));
+
+#test test_range_exclude_subrange_left
+      tn_range r1 = random_tn_range();
+      tn_range r2;
+      tn_range rx;
+
+      r2.hi = tn_random_int(r1.lo, r1.hi);
+      r2.lo = r1.lo;
+      rx = tn_range_exclude(r1, r2);
+      ck_assert(!tn_range_subrange(r2, rx));
+
+#test-loop(0,100) test_range_disjoint_symm
+      tn_range r1 = random_tn_range();
+      tn_range r2 = random_tn_range();
+
+      ck_assert_int_eq((int)tn_range_disjoint(r1, r2),
+                       (int)tn_range_disjoint(r2, r1));
+
+#test-loop(0,100) test_range_connected_symm
+      tn_range r1 = random_tn_range();
+      tn_range r2 = random_tn_range();
+
+      ck_assert_int_eq((int)tn_range_connected(r1, r2),
+                       (int)tn_range_connected(r2, r1));
+
+#test test_range_connected_max
+      tn_range r = random_tn_range();
+      ck_assert(tn_range_connected(r, (tn_range){INT32_MIN, INT32_MAX}));
+
+#test test_range_not_disjoint_max
+      tn_range r = random_tn_range();
+      ck_assert(!tn_range_disjoint(r, (tn_range){INT32_MIN, INT32_MAX}));
 
 #test test_range_minmax
       tn_range r1 = random_tn_range();
