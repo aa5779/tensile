@@ -16,7 +16,7 @@ for f; do
                                  /TNH_[[:alnum:]_]*_H/!s/^#define \([[:alpha:]_][[:alnum:]_]*\).*$/\1/p 
                         }' "$f"
             ;;
-        *.texi)
+        *.info)
             # Just to support mixed dependency lists
             ;;
         *)

@@ -13,4 +13,4 @@ CLEANFILES = $(noinst_HEADERS:.h=.texi) \
 			 $(info_TEXINFOS:.texi=.info)
 
 check-docs: $(noinst_LIBRARIES) $(noinst_HEADERS) \
-			$(info_TEXINFOS) $(libtn_TEXINFOS)
+			$(info_TEXINFOS:.texi=.info)

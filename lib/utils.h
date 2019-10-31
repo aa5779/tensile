@@ -118,7 +118,7 @@ tn_bug_on(bool cond, const char *file, int line, const char *msg)
 #define TN_INTERNAL_ERROR(_fmt, ...)                    \
     tn_log_error(__FILE__, __LINE__, _fmt, __VA_ARGS__)
 
-/** @deftp Structure tn_ptr_location
+/** @deftp Struct tn_ptr_location
  * A data type to store pooled pointer information.
  * @code{context} is a memory pool owning the pointer;
  * @code{loc} is an address of a variable holding the pointer
@@ -376,7 +376,7 @@ tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
 #define TN_REALLOC_FLEX(_loc, _type, _flexfield, _newcnt)           \
     tn_realloc((_loc), TN_FLEX_SIZE(_type, _flexfield, _newcnt))
 
-/** @deftp Structure tn_buffer
+/** @deftp Struct tn_buffer
  *  @undocumented
  *  @end deftp
  */
