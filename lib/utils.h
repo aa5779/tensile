@@ -23,11 +23,7 @@ extern "C"
 #include <string.h>
 #include <talloc.h>
 
-#ifdef UNIT_TESTING
-/**@ifset INTERNALS */
-#define abort() exit(1)
-/**@end ifset */
-#endif
+extern void __gcov_dump (void);
 
 /** @defmac TN_ARRAY_SIZE _arr
  *  Returns the number of elements in an array @var{_arr}
@@ -77,6 +73,7 @@ tn_bug_on(bool cond, const char *file, int line, const char *msg)
     if (TN_UNLIKELY(cond))
     {
         fprintf(stderr, "%s:%d: %s\n", file, line, msg);
+        __gcov_dump();
         abort();
     }
 }

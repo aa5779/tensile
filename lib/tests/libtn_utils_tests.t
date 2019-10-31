@@ -1,4 +1,5 @@
 #include <time.h>
+#include <signal.h>
 #include "utils.h"
 
 static int ctx_destroy_count;
@@ -70,7 +71,7 @@ TCASE(Assert)
 TEST(test_bug_on_ok, OK, ONCE)
       TN_BUG_ON(false);
 
-TEST(test_bug_on_abort, EXIT(1), ONCE)
+TEST(test_bug_on_abort, SIGNAL(ABRT), ONCE)
       TN_BUG_ON(true);
 
 TEST(test_random)
@@ -177,7 +178,7 @@ TEST(test_copy_move_same, OK, ONCE)
       ck_assert_ptr_ne(ctx, NULL);
       tn_free(TN_GLOC(ctx));
 
-TEST(test_copy_same_ctx, EXIT(1), ONCE)
+TEST(test_copy_same_ctx, SIGNAL(ABRT), ONCE)
       mem_context *ctx = NULL;
       mem_context *ctx2 = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
