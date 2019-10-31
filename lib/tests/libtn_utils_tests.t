@@ -63,17 +63,17 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
     return 0;
 }
 
-#suite Utils
+SUITE(Utils)
 
-#tcase Assert
+TCASE(Assert)
 
-#test test_bug_on_ok
+TEST(test_bug_on_ok, OK, ONCE)
       TN_BUG_ON(false);
 
-#test-exit(1) test_bug_on_abort
+TEST(test_bug_on_abort, EXIT(1), ONCE)
       TN_BUG_ON(true);
 
-#test-loop(0,100) test_random
+TEST(test_random)
       int min;
       int max;
       int r;
@@ -84,7 +84,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_int_ge(r, min);
       ck_assert_int_le(r, max);
 
-#test test_random_big
+TEST(test_random_big, OK, ONCE)
       int j;
       bool has_neg = false;
       bool has_pos = false;
@@ -100,9 +100,9 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert(has_neg);
       ck_assert(has_pos);
 
-#tcase Memory
+TCASE(Memory)
 
-#test test_new_free_global
+TEST(test_new_free_global, OK, ONCE)
       mem_context *ctx = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
       ck_assert_ptr_ne(ctx, NULL);
@@ -110,7 +110,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       tn_free(TN_GLOC(ctx));
       ck_assert_int_eq(ctx_destroy_count, 1);
 
-#test test_alloc_free_recursive
+TEST(test_alloc_free_recursive, OK, ONCE)
       mem_context *ctx = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
       ck_assert_ptr_eq(ctx->child, NULL);
@@ -121,7 +121,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_int_eq(ctx_destroy_count, 1);
       ck_assert_int_eq(child_destroy_count, 1);
 
-#test test_alloc_free_shared
+TEST(test_alloc_free_shared, OK, ONCE)
       mem_context *ctx1 = NULL;
       mem_context *ctx2 = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx1), mem_context);
@@ -138,7 +138,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       tn_free(TN_GLOC(ctx2));
       ck_assert_int_eq(child_destroy_count, 1);
 
-#test test_alloc_flex
+TEST(test_alloc_flex, OK, ONCE)
       mem_context_flex *ctx = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context_flex);
       TN_ALLOC_TYPED_FLEX(TN_FLOC(ctx, child), mem_child_flex, flex, 2);
@@ -148,7 +148,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       tn_free(TN_GLOC(ctx));
       ck_assert_int_eq(child_destroy_count, 2);
 
-#test test_alloc_move_shared
+TEST(test_alloc_move_shared, OK, ONCE)
       mem_context *ctx1 = NULL;
       mem_context *ctx2 = NULL;
       void *prev;
@@ -167,7 +167,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       tn_free(TN_GLOC(ctx2));
       ck_assert_int_eq(child_destroy_count, 1);
 
-#test test_copy_move_same
+TEST(test_copy_move_same, OK, ONCE)
       mem_context *ctx = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
       tn_copy_ptr(TN_GLOC(ctx), TN_GLOC(ctx));
@@ -177,13 +177,13 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_ptr_ne(ctx, NULL);
       tn_free(TN_GLOC(ctx));
 
-#test-exit(1) test_copy_same_ctx
+TEST(test_copy_same_ctx, EXIT(1), ONCE)
       mem_context *ctx = NULL;
       mem_context *ctx2 = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
       tn_copy_ptr(TN_GLOC(ctx2), TN_GLOC(ctx));
 
-#test test_move_same_ctx
+TEST(test_move_same_ctx, OK, ONCE)
       mem_context *ctx = NULL;
       mem_context *ctx2 = NULL;
       void *prev;
@@ -195,19 +195,19 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert(!tn_is_shared_ptr(ctx2));
       tn_free(TN_GLOC(ctx2));
 
-#test test_strdup_null
+TEST(test_strdup_null, OK, ONCE)
       char *s = NULL;
       tn_strdup(TN_GLOC(s), NULL);
       ck_assert_ptr_eq(s, NULL);
 
-#test test_alloc_trivial_typed
+TEST(test_alloc_trivial_typed, OK, ONCE)
       void *tst = NULL;
       tn_alloc_typed(TN_GLOC(tst), NULL, 4, NULL);
       ck_assert_ptr_ne(tst, NULL);
       tn_free(TN_GLOC(tst));
       ck_assert_ptr_eq(tst, NULL);
 
-#test test_alloc_append_str
+TEST(test_alloc_append_str, OK, ONCE)
       mem_str_ctx *ctx = NULL;
       static const char *str = "str";
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_str_ctx);
@@ -217,14 +217,14 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_str_eq(ctx->str, "string");
       tn_free(TN_GLOC(ctx));
 
-#test test_alloc_sprintf
+TEST(test_alloc_sprintf, OK, ONCE)
       mem_str_ctx *ctx = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_str_ctx);
       tn_sprintf(TN_FLOC(ctx, str), "%s%d.%d", "*", 0, 1);
       ck_assert_str_eq(ctx->str, "*0.1");
       tn_free(TN_GLOC(ctx));
 
-#test test_cow
+TEST(test_cow, OK, ONCE)
       mem_context *ctx = NULL;
       mem_context *ctx2 = NULL;
       void *prev;
@@ -245,7 +245,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       tn_free(TN_GLOC(ctx));
       tn_free(TN_GLOC(ctx2));
 
-#test test_append_buffer_null
+TEST(test_append_buffer_null, OK, ONCE)
       char *str = NULL;
       tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(str), 0, 0);
       char *app;
@@ -256,7 +256,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_uint_eq(buf.len, 10);
       tn_free(TN_GLOC(str));
 
-#test test_append_buffer_do_append
+TEST(test_append_buffer_do_append, OK, ONCE)
       char *str = NULL;
       tn_buffer buf;
       char *app;
@@ -270,7 +270,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_uint_eq(buf.len, sizeof("buffer"));
       tn_free(TN_GLOC(str));
 
-#test test_append_buffer_append_delta
+TEST(test_append_buffer_append_delta, OK, ONCE)
       char *str = NULL;
       tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(str), 0, 0);
       char *app;
@@ -284,7 +284,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
       ck_assert_uint_eq(buf.bufsize, 65);
       tn_free(TN_GLOC(str));
 
-#test test_append_buffer_offset
+TEST(test_append_buffer_offset, OK, ONCE)
       mem_child_flex *flex = NULL;
       int *app = NULL;
       tn_buffer buf;

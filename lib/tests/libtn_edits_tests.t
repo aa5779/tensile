@@ -1,14 +1,6 @@
 #include <sys/time.h>
 #include "values.h"
 
-static void
-init_random(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    srandom(tv.tv_sec ^ tv.tv_usec);
-}
-
 static uint32_t *
 generate_random_string(unsigned *n)
 {
@@ -27,7 +19,7 @@ generate_random_string(unsigned *n)
 #undef MAX_STR_LEN
 }
 
-#test test_edit_distance_self
+TEST(test_edit_distance_self, OK, ONCE)
     unsigned len;
     uint32_t *str;
     size_t dist;
@@ -37,7 +29,7 @@ generate_random_string(unsigned *n)
     ck_assert_uint_eq(dist, 0);
     tn_free(TN_GLOC(str));
 
-#test test_edit_distance_empty
+TEST(test_edit_distance_empty, OK, ONCE)
     unsigned len;
     uint32_t *str;
     size_t dist;
@@ -49,7 +41,7 @@ generate_random_string(unsigned *n)
     ck_assert_uint_eq(dist, len);
     tn_free(TN_GLOC(str));
 
-#test-loop(0,100) test_edit_distance_symm
+TEST(test_edit_distance_symm)
     unsigned len1;
     uint32_t *str1;
     unsigned len2;
@@ -65,7 +57,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str1));
     tn_free(TN_GLOC(str2));
 
-#test test_edit_distance_prefix
+TEST(test_edit_distance_prefix, OK, ONCE)
     unsigned len1;
     uint32_t *str;
     unsigned len2;
@@ -78,7 +70,7 @@ generate_random_string(unsigned *n)
     ck_assert_uint_eq(dist, len1 - len2);
     tn_free(TN_GLOC(str));
 
-#test-loop(0,100) test_edit_subst_single
+TEST(test_edit_subst_single)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -93,7 +85,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(str2));
 
-#test-loop(0,100) test_edit_ins_single
+TEST(test_edit_ins_single)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -109,7 +101,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(str2));
 
-#test-loop(0,100) test_edit_del_single
+TEST(test_edit_del_single)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -124,11 +116,11 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(str2));
 
-#test test_edit_seq_invalid
+TEST(test_edit_seq_invalid, OK, ONCE)
     ck_assert(!tn_edit_seq_valid(2, (tn_edit_item[]){{1, 0}, {0, 0}}));
     ck_assert(!tn_edit_seq_valid(2, (tn_edit_item[]){{1, 0}, {1, 0}}));
 
-#test test_edit_seq_self
+TEST(test_edit_seq_self, OK, ONCE)
     unsigned len;
     uint32_t *str;
     tn_edit_item *items = NULL;
@@ -141,7 +133,7 @@ generate_random_string(unsigned *n)
     ck_assert(tn_edit_seq_valid(0, NULL));
     tn_free(TN_GLOC(str));
 
-#test-loop(0,100) test_edit_seq_dist
+TEST(test_edit_seq_dist)
     unsigned len1;
     uint32_t *str1;
     unsigned len2;
@@ -166,7 +158,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str2));
     tn_free(TN_GLOC(items));
 
-#test test_edit_seq_empty_left
+TEST(test_edit_seq_empty_left, OK, ONCE)
     unsigned len;
     uint32_t *str;
     tn_edit_item *items = NULL;
@@ -184,7 +176,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(items));
 
-#test test_edit_seq_empty_right
+TEST(test_edit_seq_empty_right, OK, ONCE)
     unsigned len;
     uint32_t *str;
     tn_edit_item *items = NULL;
@@ -202,7 +194,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(items));
 
-#test test_edit_seq_pure_subst
+TEST(test_edit_seq_pure_subst, OK, ONCE)
     unsigned len;
     uint32_t *str1 = NULL;
     uint32_t *str2 = NULL;
@@ -230,7 +222,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str2));
     tn_free(TN_GLOC(items));
 
-#test-loop(0,100) test_edit_seq_subst_single
+TEST(test_edit_seq_subst_single)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -251,7 +243,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str2));
     tn_free(TN_GLOC(items));
 
-#test-loop(0,100) test_edit_seq_ins_single
+TEST(test_edit_seq_ins_single)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -273,7 +265,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str2));
     tn_free(TN_GLOC(items));
 
-#test-loop(0,100) test_edit_seq_ins_subst
+TEST(test_edit_seq_ins_subst)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -299,7 +291,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(items));
 
 
-#test-loop(0,100) test_edit_seq_del_single
+TEST(test_edit_seq_del_single)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -320,7 +312,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str2));
     tn_free(TN_GLOC(items));
 
-#test test_edit_apply_empty
+TEST(test_edit_apply_empty, OK, ONCE)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -333,7 +325,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(str2));
 
-#test-loop(0,100) test_edit_apply_any
+TEST(test_edit_apply_any)
     unsigned len1;
     uint32_t *str1;
     unsigned len2;
@@ -355,7 +347,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str3));
     tn_free(TN_GLOC(items));
 
-#test-loop(0,100) test_edit_apply_single_subst
+TEST(test_edit_apply_single_subst)
     unsigned len;
     uint32_t *str;
     uint32_t *str2 = NULL;
@@ -373,7 +365,7 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str));
     tn_free(TN_GLOC(str2));
 
-#test-loop(0,100) test_edit_apply_prefix
+TEST(test_edit_apply_prefix)
     unsigned len1;
     uint32_t *str1;
     unsigned len2;
@@ -397,5 +389,3 @@ generate_random_string(unsigned *n)
     tn_free(TN_GLOC(str3));
     tn_free(TN_GLOC(items));
 
-#main-pre
-    tcase_add_checked_fixture(tc1_1, init_random, NULL);

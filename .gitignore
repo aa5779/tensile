@@ -29,19 +29,9 @@ build/*
 autom4te.cache/*
 Makefile.in
 aclocal.m4
-compile
 configure
-missing
-install-sh
 tn_config.h.in
-depcomp
-ylwrap
-test-driver
-config.guess
-config.sub
-mdate-sh
 lib/version.texi
-stamp-vti
 
 
 TAGS
