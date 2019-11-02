@@ -78,7 +78,6 @@ TEST(test_random)
       int min;
       int max;
       int r;
-      srandom(time(NULL) ^ _i);
       min = random() - RAND_MAX / 2;
       max = min + random() / 2;
       r = tn_random_int(min, max);
@@ -89,7 +88,6 @@ TEST(test_random_big, OK, ONCE)
       int j;
       bool has_neg = false;
       bool has_pos = false;
-      srandom(time(NULL));
       for (j = 0; j < 100; j++)
       {
          int r = tn_random_int(INT32_MIN, INT32_MAX);
