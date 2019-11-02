@@ -20,12 +20,11 @@ extern void yyerror(const char *msg);
 %token TOK_INTRINSIC
 %token TOK_TERM
 %token TOK_RETURN
-%token TOK_ERROR
 %token TOK_META
 
 %token TOK_ARROW
 
-%right '?' '!' '~' '@'
+%right '?' '!' '~' '@' TOK_CATCH
 %right '|'
 %right '&'
 %right TOK_ASSIGN TOK_ASSIGN_OP TOK_ASSIGN_DEFAULT
@@ -60,10 +59,10 @@ definitions:            %empty
                         ;
 
 definition:             qdefinition
-        |               TOK_ERROR termhead
         |               TOK_IMPORT module_expr import_list
         |               TOK_INTRINSIC TOK_ID
         |               TOK_META TOK_ID TOK_STRING
+        |               TOK_FAIL TOK_ID
                         ;
 
 qdefinition:            staticlocal0 qdefinition0
@@ -77,6 +76,7 @@ expression:             expression '?' expression
         |               expression '!' expression
         |               expression '~' expression
         |               expression '@' expression
+        |               expression TOK_CATCH expression
         |               expression '&' expression
         |               expression TOK_ASSIGN expression
         |               expression TOK_ASSIGN_OP expression
@@ -262,7 +262,6 @@ key:                    TOK_ID
 
 typedecl:               TOK_ID typefunc
         |               TOK_TERM
-        |               TOK_ERROR
         |               TOK_ARB
         |               TOK_ADDRESS typedecl
         |               TOK_DEFER typedecl
@@ -352,4 +351,5 @@ target:                 TOK_RETURN
         |               TOK_CONTINUE
         |               TOK_FAIL
         |               TOK_ABORT
+        |               TOK_ID
         ;

@@ -8,6 +8,7 @@
 %}
 
 %s FUNCALL
+%x COMMENT
 SP [[:space:]]+
 ESCAPE \\([abefnrtvz\\\'\"]|u[[:xdigit:]]{4}|U[[:xdigit:]]{8}|[uU]\{[^}]+\})
 %%
@@ -83,7 +84,11 @@ meta { BEGIN(INITIAL); return TOK_META; }
 @ { BEGIN(INITIAL); return TOK_ASSIGN_POS; }
 \% { BEGIN(INITIAL); return TOK_NODE_HEAD; }
 => { BEGIN(INITIAL); return TOK_ARROW; }
+\<[[:alpha:]_][[:alnum:]_]*\> { BEGIN(INITIAL); return TOK_CATCH; }
 
 {SP} { BEGIN(INITIAL); }
 \/\/.*\n { BEGIN(INITIAL); }
-#[#!].*\n { BEGIN(INITIAL); }
+\/\* { BEGIN(COMMENT); }
+<COMMENT>\*\/ { BEGIN(INITIAL); }
+<COMMENT>. {}
+<COMMENT>\n {}
