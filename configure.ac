@@ -12,7 +12,6 @@ AS_IF([test "x$ax_enable_debug" = xno],
 
 AC_PROG_CC_C99
 AC_PROG_RANLIB
-AC_PROG_SED
 AC_PROG_AWK
 AC_PATH_PROGS([M4], [gm4 m4])
 
@@ -20,6 +19,10 @@ AC_CHECK_TOOL([NM], [nm])
 
 AX_PROG_FLEX
 AX_PROG_BISON
+
+DX_PS_FEATURE([OFF])
+DX_DOT_FEATURE([ON])
+DX_INIT_DOXYGEN([tensile], [$(top_srcdir)/Doxyfile], [doc])
 
 AX_CODE_COVERAGE()
 AX_COMPILER_FLAGS()

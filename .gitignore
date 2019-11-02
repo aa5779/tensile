@@ -31,7 +31,6 @@ Makefile.in
 aclocal.m4
 configure
 tn_config.h.in
-lib/version.texi
 
 
 TAGS
