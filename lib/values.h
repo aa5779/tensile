@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-/** @node Values
- * @chapter Values
+/** @file
+ * Values.
  */
 #ifndef TNH_VALUES_H
 #define TNH_VALUES_H 1
@@ -20,9 +20,8 @@ extern "C"
 #include <unitypes.h>
 #include "utils.h"
 
-/** @deftp Enum tn_value_type
- *  @undocumented
- *  @end deftp
+/**
+ * @undocumented
  */
 enum tn_value_type {
     TNV_NULL,
@@ -50,28 +49,25 @@ enum tn_value_type {
     TNV_LOCAL,
 };
 
-/** @node References
- *  @section References
+/** @defgroup references References
+ * @{
  */
 
-/** @deftp Struct tn_ref
- *  @undocumented
- *  @end deftp
+/**
+ * @undocumented
  */
 typedef struct tn_ref {
     uint64_t hi;
     uint64_t lo;
 } tn_ref;
 
-/** @deftp Type tn_rel_ref
- *  @undocumented
- *  @end deftp
+/**
+ * @undocumented
  */
 typedef uint32_t tn_rel_ref;
 
-/** @deftp Enum tn_ref_kind
- *  @undocumented
- *  @end deftp
+/**
+ * @undocumented
  */
 enum tn_ref_kind {
     TNRK_STATIC,
@@ -83,17 +79,15 @@ enum tn_ref_kind {
     TNRK_OP_INDIRECT,
 };
 
-/**@ifset INTERNALS */
+#ifndef __DOXYGEN__
 #define TNRK_BIT_BASE 56
 #define TNRK_REL_BIT_BASE 24
 #define TNRK_MASK ((1ULL << TNRK_BIT_BASE) - 1)
 #define TNRK_REL_MASK ((1ULL << TNRK_REL_BIT_BASE) - 1)
-/**@end ifset */
+#endif
 
-/** @deftypefun bool tn_ref_is_kind(tn_ref @var{ref}, @
- *                                  enum tn_ref_kind @var{kind})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_ref_is_kind(tn_ref ref, enum tn_ref_kind kind)
@@ -101,9 +95,8 @@ tn_ref_is_kind(tn_ref ref, enum tn_ref_kind kind)
     return (ref.hi & (1ULL << (TNRK_BIT_BASE + kind))) != 0;
 }
 
-/** @deftypefun bool tn_ref_request_kind(enum tn_ref_kind @var{kind})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline unsigned TN_NO_SHARED_STATE
 tn_ref_request_kind(enum tn_ref_kind kind)
@@ -111,10 +104,8 @@ tn_ref_request_kind(enum tn_ref_kind kind)
     return 1 << kind;
 }
 
-/** @deftypefun tn_ref tn_ref_add(tn_ref @var{ref}, @
- *                                unsigned @var{incr})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_ref TN_NO_SHARED_STATE
 tn_ref_add(tn_ref ref, unsigned incr)
@@ -131,10 +122,8 @@ tn_ref_add(tn_ref ref, unsigned incr)
     return newref;
 }
 
-/** @deftypefun tn_ref tn_ref_relative(tn_ref @var{ref}, @
- *                                     tn_ref @var{rel})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_ref TN_NO_SHARED_STATE
 tn_ref_relative(tn_ref ref, tn_rel_ref rel)
@@ -145,10 +134,8 @@ tn_ref_relative(tn_ref ref, tn_rel_ref rel)
     return newref;
 }
 
-/** @deftypefun tn_rel_ref tn_ref_mkrel(tn_ref @var{base}, @
- *                                      tn_ref @var{ref})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_rel_ref TN_NO_SHARED_STATE
 tn_ref_mkrel(tn_ref base, tn_ref ref)
@@ -167,10 +154,8 @@ tn_ref_mkrel(tn_ref base, tn_ref ref)
         (ref.hi >> TNRK_BIT_BASE << TNRK_REL_BIT_BASE);
 }
 
-/** @deftypefun tn_ref tn_ref_rebase(tn_ref @var{ref}, @
- *                                   tn_ref @var{new_base})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_ref TN_NO_SHARED_STATE
 tn_ref_rebase(tn_ref ref, tn_ref new_base)
@@ -186,10 +171,8 @@ tn_ref_rebase(tn_ref ref, tn_ref new_base)
     return newref;
 }
 
-/** @deftypefun bool tn_ref_eq(tn_ref @var{ref1}, @
- *                             tn_ref @var{ref2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_ref_eq(tn_ref ref1, tn_ref ref2)
@@ -197,10 +180,8 @@ tn_ref_eq(tn_ref ref1, tn_ref ref2)
     return ref1.lo == ref2.lo && ref1.hi == ref2.hi;
 }
 
-/** @deftypefun bool tn_ref_le(tn_ref @var{ref1}, @
- *                             tn_ref @var{ref2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_ref_le(tn_ref ref1, tn_ref ref2)
@@ -218,22 +199,22 @@ tn_ref_le(tn_ref ref1, tn_ref ref2)
 #undef TNRK_REL_BIT_BASE
 #endif
 
-/** @node Ranges
- *  @section Ranges
+/**@}*/
+
+/** @defgroup ranges Ranges
+ * @{
  */
 
-/** @deftp Struct tn_range
- *  @undocumented
- *  @end deftp
+/**
+ * @undocumented
  */
 typedef struct tn_range {
     int32_t lo;
     int32_t hi;
 } tn_range;
 
-/** @deftypefun bool tn_range_valid(tn_range @var{r})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_valid(tn_range r)
@@ -241,9 +222,8 @@ tn_range_valid(tn_range r)
     return r.lo <= r.hi;
 }
 
-/** @deftypefun bool tn_range_contains(tn_range @var{r}, int32_t v)
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_contains(tn_range r, int32_t v)
@@ -251,9 +231,8 @@ tn_range_contains(tn_range r, int32_t v)
     return v >= r.lo && v <= r.hi;
 }
 
-/** @deftypefun bool tn_range_subrange(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_subrange(tn_range r1, tn_range r2)
@@ -261,9 +240,8 @@ tn_range_subrange(tn_range r1, tn_range r2)
     return tn_range_contains(r2, r1.lo) && tn_range_contains(r2, r1.hi);
 }
 
-/** @deftypefun bool tn_range_disjoint(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_disjoint(tn_range r1, tn_range r2)
@@ -271,9 +249,8 @@ tn_range_disjoint(tn_range r1, tn_range r2)
     return r1.hi < r2.lo || r2.hi < r1.lo;
 }
 
-/** @deftypefun bool tn_range_eq(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_eq(tn_range r1, tn_range r2)
@@ -281,9 +258,8 @@ tn_range_eq(tn_range r1, tn_range r2)
     return r1.lo == r2.lo && r1.hi == r2.hi;
 }
 
-/** @deftypefun bool tn_range_le(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_le(tn_range r1, tn_range r2)
@@ -291,9 +267,8 @@ tn_range_le(tn_range r1, tn_range r2)
     return r1.lo < r2.lo || (r1.lo == r2.lo && r1.hi <= r2.hi);
 }
 
-/** @deftypefun tn_range tn_range_min(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_range TN_NO_SHARED_STATE
 tn_range_min(tn_range r1, tn_range r2)
@@ -301,9 +276,8 @@ tn_range_min(tn_range r1, tn_range r2)
     return tn_range_le(r1, r2) ? r1 : r2;
 }
 
-/** @deftypefun tn_range tn_range_max(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_range TN_NO_SHARED_STATE
 tn_range_max(tn_range r1, tn_range r2)
@@ -311,9 +285,8 @@ tn_range_max(tn_range r1, tn_range r2)
     return tn_range_le(r1, r2) ? r2 : r1;
 }
 
-/** @deftypefun bool tn_range_connected(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline bool TN_NO_SHARED_STATE
 tn_range_connected(tn_range r1, tn_range r2)
@@ -324,10 +297,8 @@ tn_range_connected(tn_range r1, tn_range r2)
     return mhi == INT32_MAX || mhi + 1 >= mlo;
 }
 
-/** @deftypefun tn_range tn_range_span_fast(tn_range @var{r1}, @
- *                                          tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_range TN_NO_SHARED_STATE
 tn_range_span_fast(tn_range r1, tn_range r2)
@@ -337,9 +308,8 @@ tn_range_span_fast(tn_range r1, tn_range r2)
             };
 }
 
-/** @deftypefun tn_range tn_range_span(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_range TN_NO_SHARED_STATE
 tn_range_span(tn_range r1, tn_range r2)
@@ -352,10 +322,8 @@ tn_range_span(tn_range r1, tn_range r2)
     return tn_range_span_fast(r1, r2);
 }
 
-/** @deftypefun tn_range tn_range_intersect(tn_range @var{r1}, @
- *                                          tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_range TN_NO_SHARED_STATE
 tn_range_intersect(tn_range r1, tn_range r2)
@@ -365,9 +333,8 @@ tn_range_intersect(tn_range r1, tn_range r2)
             };
 }
 
-/** @deftypefun tn_range tn_range_exclude(tn_range @var{r1}, tn_range @var{r2})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 static inline tn_range TN_NO_SHARED_STATE
 tn_range_exclude(tn_range r1, tn_range r2)
@@ -378,75 +345,58 @@ tn_range_exclude(tn_range r1, tn_range r2)
     return tn_range_span(left, right);
 }
 
-/** @node Charsets
- *  @section Charsets
+/**@}*/
+
+/** @defgroup charsets Charsets
+ * @{
  */
 
-/** @defmac TN_INVALID_CHAR
- *  Impossible Unicode character
- *  @end defmac
+/**
+ * Impossible Unicode character.
  */
 #define TN_INVALID_CHAR UINT32_MAX
 
-/** @deftp Struct tn_charset_range
- *  @undocumented
- *  @end deftp
+/**
+ * @undocumented
  */
 typedef struct tn_charset_range {
     ucs4_t lo;
     ucs4_t hi;
 } tn_charset_range;
 
-/** @deftypefun bool tn_charset_valid(size_t @var{len}, @
- *                                const tn_charset_range @
- *                                @var{set}[@var{len}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern bool tn_charset_valid(size_t len,
                              const tn_charset_range set[TN_VAR_SIZE(len)]);
 
-/** @deftypefun unsigned tn_charset_cardinality(size_t @var{len}, @
- *                                              const tn_charset_range @
- *                                              @var{set}[@var{len}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern unsigned tn_charset_cardinality(size_t len,
                                        const tn_charset_range \
                                        set[TN_VAR_SIZE(len)]);
 
-/** @deftypefun ucs4_t tn_charset_nth(size_t @var{len}, @
- *                                    const tn_charset_range @
- *                                    @var{set}[@var{len}], @
- *                                    unsigned @var{i})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern ucs4_t tn_charset_nth(size_t len,
                              const tn_charset_range set[TN_VAR_SIZE(len)],
                              unsigned i);
 
-/** @deftypefun bool tn_charset_contains(size_t @var{len}, @
- *                                       const tn_charset_range @
- *                                       @var{set}[@var{len}], @
- *                                       ucs4_t ch)
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern bool tn_charset_contains(size_t len,
                                 const tn_charset_range set[TN_VAR_SIZE(len)],
                                 ucs4_t ch);
 
-/** @deftypefun ucs4_t tn_charset_min(size_t @var{len}, @
- *                                    const tn_charset_range @
- *                                    @var{set}[@var{len}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 static inline ucs4_t
@@ -455,11 +405,8 @@ tn_charset_min(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)])
     return len == 0 ? TN_INVALID_CHAR : set[0].lo;
 }
 
-/** @deftypefun ucs4_t tn_charset_max(size_t @var{len}, @
- *                                    const tn_charset_range @
- *                                    @var{set}[@var{len}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 static inline ucs4_t
@@ -468,14 +415,8 @@ tn_charset_max(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)])
     return len == 0 ? TN_INVALID_CHAR : set[len - 1].hi;
 }
 
-/** @deftypefun bool tn_charset_subset(size_t @var{sublen}, @
- *                                     const tn_charset_range @
- *                                     @var{subset}[@var{sublen}],
- *                                     size_t @var{superlen}, @
- *                                     const tn_charset_range @
- *                                     @var{superset}[@var{superlen}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern bool tn_charset_subset(size_t sublen,
@@ -485,15 +426,8 @@ extern bool tn_charset_subset(size_t sublen,
                               const tn_charset_range            \
                               superset[TN_VAR_SIZE(superlen)]);
 
-/** @deftypefun bool tn_charset_generate_union(size_t @var{len1}, @
- *                                             const tn_charset_range @
- *                                             @var{set1}[@var{len1}],
- *                                             size_t @var{len2}, @
- *                                             const tn_charset_range @
- *                                             @var{set2}[@var{len2}], @
- *                                             tn_buffer *@var{dest})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NOT_NULL_ARGS(5)
 extern void tn_charset_generate_union(size_t len1,
@@ -504,15 +438,8 @@ extern void tn_charset_generate_union(size_t len1,
                                       set2[TN_VAR_SIZE(len2)],
                                       tn_buffer *dest);
 
-/** @deftypefun bool tn_charset_generate_intersect(size_t @var{len1}, @
- *                                                 const tn_charset_range @
- *                                                 @var{set1}[@var{len1}],
- *                                                 size_t @var{len2}, @
- *                                                 const tn_charset_range @
- *                                                 @var{set2}[@var{len2}], @
- *                                                 tn_buffer *@var{dest})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NOT_NULL_ARGS(5)
 extern void tn_charset_generate_intersect(size_t len1,
@@ -523,15 +450,8 @@ extern void tn_charset_generate_intersect(size_t len1,
                                           set2[TN_VAR_SIZE(len2)],
                                           tn_buffer *dest);
 
-/** @deftypefun bool tn_charset_generate_complement(size_t @var{len}, @
- *                                                 const tn_charset_range @
- *                                                 @var{set}[@var{len}],
- *                                                 size_t @var{len2}, @
- *                                                 const tn_charset_range @
- *                                                 @var{set2}[@var{len2}], @
- *                                                 tn_buffer *@var{dest})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NOT_NULL_ARGS(3)
 extern void tn_charset_generate_complement(size_t len,
@@ -539,15 +459,8 @@ extern void tn_charset_generate_complement(size_t len,
                                            set[TN_VAR_SIZE(len)],
                                            tn_buffer *dest);
 
-/** @deftypefun bool tn_charset_generate_diff(size_t @var{len1}, @
- *                                            const tn_charset_range @
- *                                            @var{set1}[@var{len1}],
- *                                            size_t @var{len2}, @
- *                                            const tn_charset_range @
- *                                            @var{set2}[@var{len2}], @
- *                                            tn_buffer *@var{dest})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NOT_NULL_ARGS(5)
 extern void tn_charset_generate_diff(size_t len1,
@@ -558,33 +471,27 @@ extern void tn_charset_generate_diff(size_t len1,
                                      set2[TN_VAR_SIZE(len2)],
                                      tn_buffer *dest);
 
-/** @node Edits
- *  @section edits
+/**@}*/
+
+/** @defgroup edits Edits
+ * @{
  */
 
-/** @deftp Struct tn_edit_item
- *  Edit sequence element
- *  @end deftp
+/**
+ * Edit sequence element
  */
 typedef struct tn_edit_item {
     size_t pos;
     ucs4_t ch;
 } tn_edit_item;
 
-/** @defmac TN_EDIT_INSERT
- *  @undocumented
- *  @end defmac
+/**
+ * @undocumented
  */
 #define TN_EDIT_INSERT (1ull << ((sizeof(size_t) * CHAR_BIT) - 1))
 
-/** @deftypefun size_t tn_edit_distance(size_t @var{len1}, @
- *                                      const uint32_t @
- *                                      @var{str1}[@var{len1}], @
- *                                      size_t @var{len2}, @
- *                                      const uint32_t @
- *                                      @var{str2}[@var{len2}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern size_t tn_edit_distance(size_t len1,
@@ -593,32 +500,22 @@ extern size_t tn_edit_distance(size_t len1,
                                const uint32_t str2[TN_VAR_SIZE(len2)]);
 
 #ifndef TN_DEBUG_DISABLED
-/** @deftypevar size_t tn_edit_seq_memory_utilization
- *  @undocumented
- *  @end deftypevar
+/**
+ * @undocumented
  */
 extern size_t tn_edit_seq_memory_utilization;
 #endif
 
 
-/** @deftypefun bool tn_edit_seq_valid(size_t @var{len}, @
- *                                     const tn_edit_item @var{seq}[@var{len}])
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 TN_NO_SHARED_STATE
 extern bool tn_edit_seq_valid(size_t len,
                               const tn_edit_item seq[TN_VAR_SIZE(len)]);
 
-/** @deftypefun size_t tn_edit_generate_sequence(size_t @var{len1}, @
- *                                               const uint32_t @
- *                                               @var{str1}[@var{len1}], @
- *                                               size_t @var{len2}, @
- *                                               const uint32_t @
- *                                               @var{str2}[@var{len2}],
- *                                               tn_buffer *@var{dest})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 extern void tn_edit_generate_sequence(size_t len1,
                                       const uint32_t str1[TN_VAR_SIZE(len1)],
@@ -626,15 +523,8 @@ extern void tn_edit_generate_sequence(size_t len1,
                                       const uint32_t str2[TN_VAR_SIZE(len2)],
                                       tn_buffer *dest);
 
-/** @deftypefun size_t tn_edit_apply_sequence(size_t @var{len}, @
- *                                            const uint32_t @
- &                                            @var{str}[@var{len}], @
- *                                            size_t @var{editlen}, @
- *                                            const tn_edit_item @
- *                                            @var{edit}[@var{editlen}],
- *                                            tn_buffer *@var{dest})
- *  @undocumented
- *  @end deftypefun
+/**
+ * @undocumented
  */
 extern void tn_edit_apply_sequence(size_t len,
                                    const uint32_t str[TN_VAR_SIZE(len)],
@@ -642,6 +532,17 @@ extern void tn_edit_apply_sequence(size_t len,
                                    const tn_edit_item \
                                    edit[TN_VAR_SIZE(editlen)],
                                    tn_buffer *dest);
+
+/**
+ * @undocumented
+ */
+extern void tn_edit_compose_sequence(size_t editlen1,
+                                     const tn_edit_item \
+                                     edit1[TN_VAR_SIZE(editlen1)],
+                                     size_t editlen2,
+                                     const tn_edit_item \
+                                     edit2[TN_VAR_SIZE(editlen2)],
+                                     tn_buffer *dest);
 
 #ifdef __cplusplus
 }
