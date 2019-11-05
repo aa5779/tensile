@@ -1,4 +1,5 @@
 #include <time.h>
+#include <sys/resource.h>
 #include <signal.h>
 #include "utils.h"
 
@@ -72,6 +73,7 @@ TEST(test_bug_on_ok, OK, ONCE)
       TN_BUG_ON(false);
 
 TEST(test_bug_on_abort, SIGNAL(ABRT), ONCE)
+      setrlimit(RLIMIT_CORE, &(struct rlimit){0, 0});
       TN_BUG_ON(true);
 
 TEST(test_random)
@@ -180,6 +182,7 @@ TEST(test_copy_same_ctx, SIGNAL(ABRT), ONCE)
       mem_context *ctx = NULL;
       mem_context *ctx2 = NULL;
       TN_ALLOC_TYPED(TN_GLOC(ctx), mem_context);
+      setrlimit(RLIMIT_CORE, &(struct rlimit){0, 0});
       tn_copy_ptr(TN_GLOC(ctx2), TN_GLOC(ctx));
 
 TEST(test_move_same_ctx, OK, ONCE)
