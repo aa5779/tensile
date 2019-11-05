@@ -1,4 +1,4 @@
-#include <sys/time.h>
+#include <unistr.h>
 #include "edits.h"
 
 static uint32_t *
@@ -841,3 +841,105 @@ TEST(test_edit_lcs_dist)
     tn_free(TN_GLOC(nstr));
     tn_free(TN_GLOC(str1));
     tn_free(TN_GLOC(str2));
+
+TEST(test_edit_lcs_common)
+    unsigned len1;
+    uint32_t *str1;
+    unsigned len2;
+    uint32_t *str2;
+    uint32_t *nstr = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(nstr), 0, 0);
+    uint32_t *iter1;
+    uint32_t *iter2;
+    unsigned i;
+
+    str1 = generate_random_string(&len1);
+    str2 = generate_random_string(&len2);
+    tn_edit_generate_lcs(len1, str1, len2, str2, &dest);
+    iter1 = str1;
+    iter2 = str2;
+    for (i = 0; i < dest.len / sizeof(*nstr); i++)
+    {
+        uint32_t *next1 = u32_chr(iter1, len1 - (iter1 - str1), nstr[i]);
+        uint32_t *next2 = u32_chr(iter2, len2 - (iter2 - str2), nstr[i]);
+
+        ck_assert_ptr_ne(next1, NULL);
+        ck_assert_ptr_ne(next2, NULL);
+        iter1 = next1 + 1;
+        iter2 = next2 + 1;
+    }
+
+    tn_free(TN_GLOC(nstr));
+    tn_free(TN_GLOC(str1));
+    tn_free(TN_GLOC(str2));
+
+TEST(test_edit_merge_seq_self, OK, ONCE)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+
+    items = generate_random_edit_seq(&n);
+    ck_assert(tn_edit_merge_sequence(n, items, n, items, &dest));
+    ck_assert(tn_edit_seq_eq(n, items,
+                             dest.len / sizeof(*result),
+                             result));
+    tn_free(TN_GLOC(items));
+    tn_free(TN_GLOC(result));
+
+
+TEST(test_edit_merge_seq_empty_right, OK, ONCE)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+
+    items = generate_random_edit_seq(&n);
+    ck_assert(tn_edit_merge_sequence(n, items, 0, NULL, &dest));
+    ck_assert(tn_edit_seq_eq(n, items,
+                             dest.len / sizeof(*result),
+                             result));
+    tn_free(TN_GLOC(items));
+    tn_free(TN_GLOC(result));
+
+TEST(test_edit_merge_seq_empty_left, OK, ONCE)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+
+    items = generate_random_edit_seq(&n);
+    ck_assert(tn_edit_merge_sequence(0, NULL, n, items, &dest));
+    ck_assert(tn_edit_seq_eq(n, items,
+                             dest.len / sizeof(*result),
+                             result));
+    tn_free(TN_GLOC(items));
+    tn_free(TN_GLOC(result));
+
+TEST(test_edit_merge_seq_comm)
+    unsigned n1;
+    unsigned n2;
+    tn_edit_item *items1 = NULL;
+    tn_edit_item *items2 = NULL;
+    tn_edit_item *result1 = NULL;
+    tn_buffer dest1 = TN_BUFFER_INIT(TN_GLOC(result1), 0, 0);
+    tn_edit_item *result2 = NULL;
+    tn_buffer dest2 = TN_BUFFER_INIT(TN_GLOC(result2), 0, 0);
+    bool ok1, ok2;
+
+    items1 = generate_random_edit_seq(&n1);
+    items2 = generate_random_edit_seq(&n2);
+    ok1 = tn_edit_merge_sequence(n1, items1, n2, items2, &dest1);
+    ok2 = tn_edit_merge_sequence(n2, items2, n1, items1, &dest2);
+    if (!ok1)
+       ck_assert(!ok2);
+    else
+    {
+        ck_assert(ok2);
+        ck_assert(tn_edit_seq_eq(dest1.len / sizeof(*result1), result1,
+                                 dest2.len / sizeof(*result2), result2));
+    }
+    tn_free(TN_GLOC(items1));
+    tn_free(TN_GLOC(items2));
+    tn_free(TN_GLOC(result1));
+    tn_free(TN_GLOC(result2));

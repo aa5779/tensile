@@ -140,6 +140,18 @@ extern void tn_edit_compose_sequence(size_t editlen1,
  * @undocumented
  */
 TN_NOT_NULL_ARGS(5)
+extern bool tn_edit_merge_sequence(size_t editlen1,
+                                   const tn_edit_item \
+                                   edit1[TN_VAR_SIZE(editlen1)],
+                                   size_t editlen2,
+                                   const tn_edit_item \
+                                   edit2[TN_VAR_SIZE(editlen2)],
+                                   tn_buffer *dest);
+
+/**
+ * @undocumented
+ */
+TN_NOT_NULL_ARGS(5)
 extern void tn_edit_squeeze_sequence(size_t editlen,
                                      const tn_edit_item \
                                      edit[TN_VAR_SIZE(editlen)],

@@ -363,7 +363,6 @@ tn_edit_generate_lcs(size_t len1,
     tn_free(TN_GLOC(freelist));
 }
 
-
 void
 tn_edit_apply_sequence(size_t len,
                        const uint32_t str[TN_VAR_SIZE(len)],
@@ -485,6 +484,54 @@ tn_edit_compose_sequence(size_t editlen1,
             edit2++;
         }
     }
+}
+
+bool
+tn_edit_merge_sequence(size_t editlen1,
+                       const tn_edit_item edit1[TN_VAR_SIZE(editlen1)],
+                       size_t editlen2,
+                       const tn_edit_item edit2[TN_VAR_SIZE(editlen2)],
+                       tn_buffer *dest)
+{
+    while (editlen1 > 0 && editlen2 > 0)
+    {
+        size_t pos1 = tn_edit_position(edit1);
+        size_t pos2 = tn_edit_position(edit2);
+
+        if (pos1 < pos2)
+        {
+            *TN_BUFFER_PUSH(dest, tn_edit_item, 1) = *edit1;
+            edit1++;
+            editlen1--;
+        }
+        else if (pos2 < pos1)
+        {
+            *TN_BUFFER_PUSH(dest, tn_edit_item, 1) = *edit2;
+            edit2++;
+            editlen2--;
+        }
+        else
+        {
+            if (edit1->pos != edit2->pos || edit1->ch != edit2->ch)
+                return false;
+            *TN_BUFFER_PUSH(dest, tn_edit_item, 1) = *edit1;
+            edit1++;
+            edit2++;
+            editlen1--;
+            editlen2--;
+        }
+    }
+    if (editlen1 > 0)
+    {
+        memcpy(TN_BUFFER_PUSH(dest, tn_edit_item, editlen1),
+               edit1, editlen1 * sizeof(*edit1));
+    }
+    else if (editlen2 > 0)
+    {
+        memcpy(TN_BUFFER_PUSH(dest, tn_edit_item, editlen2),
+               edit2, editlen2 * sizeof(*edit2));
+    }
+    return true;
 }
 
 void
