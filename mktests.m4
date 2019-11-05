@@ -37,7 +37,7 @@ mkt_DECL
 mkt_SETUP
     suite_add_tcase(s`'mkt_SUITE, mkt_TCV);
     tcase_add_checked_fixture(mkt_TCV,
-                              mkt_randomize, NULL);
+                              mkt_randomize, mkt_fail_on_leaks);
 mkt_ONCLOSE
 } mkt_TCV`'_struct;
 static mkt_TCV`'_struct mkt_TCV`'_state;
@@ -123,15 +123,15 @@ int main(void)
     const char *scale_str = getenv("TN_TESTS_SCALE");
     long scale = (scale_str == NULL ? TN_TESTS_SCALE :
                                       strtol(scale_str, NULL, 10));
-    int nf = 0;
 
+    talloc_enable_leak_report();
+    talloc_set_log_fn(mkt_abort_on_talloc);
     mkt_INSSETUP
     srunner_set_tap (sr, "-");
     srunner_run_all(sr, CK_ENV);
-    nf = srunner_ntests_failed(sr);
     srunner_free(sr);
 
-    return nf == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    return 0;
 }
 ')
 mkt_TEXT
@@ -140,6 +140,7 @@ mkt_TEXT
 
 #include <stdlib.h>
 #include <sys/time.h>
+#include <talloc.h>
 #include <check.h>
 #include "compiler.h"
 
@@ -151,5 +152,18 @@ mkt_randomize(void)
     srandom(tv.tv_sec ^ tv.tv_usec);
 }
 
+static void
+mkt_fail_on_leaks(void)
+{
+    size_t leaked = talloc_total_size(NULL);
+
+    ck_assert_uint_eq(leaked, 0);
+}
+
+static void
+mkt_abort_on_talloc(const char *msg)
+{
+    ck_abort_msg(msg);
+}
 
 #line 1 "MKT_FILE"

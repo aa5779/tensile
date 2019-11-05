@@ -61,10 +61,10 @@ static inline void
 tn_bug_on(bool cond, const char *file, int line, const char *msg)
 {
     if (TN_UNLIKELY(cond))
-    {
+    { /* LCOV_EXCL_START */
         fprintf(stderr, "%s:%d: %s\n", file, line, msg);
         abort();
-    }
+    } /* LCOV_EXCL_STOP */
 }
 
 /**
