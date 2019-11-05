@@ -5,7 +5,7 @@
  */
 
 #include <search.h>
-#include "values.h"
+#include "charset.h"
 
 bool
 tn_charset_valid(size_t len, const tn_charset_range set[TN_VAR_SIZE(len)])

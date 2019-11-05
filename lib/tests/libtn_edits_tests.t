@@ -1,5 +1,5 @@
 #include <sys/time.h>
-#include "values.h"
+#include "edits.h"
 
 static uint32_t *
 generate_random_string(unsigned *n)

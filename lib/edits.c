@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "values.h"
+#include "edits.h"
 
 bool
 tn_edit_seq_eq(size_t len1,
