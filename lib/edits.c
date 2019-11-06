@@ -535,6 +535,40 @@ tn_edit_merge_sequence(size_t editlen1,
 }
 
 void
+tn_edit_intersect_sequence(size_t editlen1,
+                           const tn_edit_item edit1[TN_VAR_SIZE(editlen1)],
+                           size_t editlen2,
+                           const tn_edit_item edit2[TN_VAR_SIZE(editlen2)],
+                           tn_buffer *dest)
+{
+    while (editlen1 > 0 && editlen2 > 0)
+    {
+        size_t pos1 = tn_edit_position(edit1);
+        size_t pos2 = tn_edit_position(edit2);
+
+        if (pos1 < pos2)
+        {
+            edit1++;
+            editlen1--;
+        }
+        else if (pos2 < pos1)
+        {
+            edit2++;
+            editlen2--;
+        }
+        else
+        {
+            if (edit1->pos == edit2->pos && edit1->ch == edit2->ch)
+                *TN_BUFFER_PUSH(dest, tn_edit_item, 1) = *edit1;
+            edit1++;
+            edit2++;
+            editlen1--;
+            editlen2--;
+        }
+    }
+}
+
+void
 tn_edit_squeeze_sequence(size_t editlen,
                          const tn_edit_item edit[TN_VAR_SIZE(editlen)],
                          size_t baselen,

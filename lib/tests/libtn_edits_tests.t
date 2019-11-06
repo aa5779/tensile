@@ -943,3 +943,152 @@ TEST(test_edit_merge_seq_comm)
     tn_free(TN_GLOC(items2));
     tn_free(TN_GLOC(result1));
     tn_free(TN_GLOC(result2));
+
+
+TEST(test_edit_merge_seq_split)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *items1 = NULL;
+    tn_edit_item *items2 = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+    tn_buffer dest1 = TN_BUFFER_INIT(TN_GLOC(items1), 0, 0);
+    tn_buffer dest2 = TN_BUFFER_INIT(TN_GLOC(items2), 0, 0);
+    tn_buffer *current = &dest1;
+    unsigned i;
+
+    items = generate_random_edit_seq(&n);
+    for (i = 0; i < n; i++)
+    {
+        if (!tn_edit_is_insert(&items[i]))
+        {
+            current = tn_random_int(0, 1) ? &dest1 : &dest2;
+        }
+        *TN_BUFFER_PUSH(current, tn_edit_item, 1) = items[i];
+    }
+
+    ck_assert(tn_edit_merge_sequence(dest1.len / sizeof(*items1), items1,
+                                     dest2.len / sizeof(*items2), items2,
+                                     &dest));
+    ck_assert(tn_edit_seq_eq(n, items,
+                             dest.len / sizeof(*result), result));
+    tn_free(TN_GLOC(items));
+    tn_free(TN_GLOC(items1));
+    tn_free(TN_GLOC(items2));
+    tn_free(TN_GLOC(result));
+
+TEST(test_edit_merge_seq_reverse_conflict)
+    unsigned n1;
+    unsigned n2;
+    uint32_t *str1 = NULL;
+    uint32_t *str2 = NULL;
+    tn_edit_item *diff12 = NULL;
+    tn_buffer dest12 = TN_BUFFER_INIT(TN_GLOC(diff12), 0, 0);
+    tn_edit_item *diff21 = NULL;
+    tn_buffer dest21 = TN_BUFFER_INIT(TN_GLOC(diff21), 0, 0);
+    tn_edit_item *merge = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(merge), 0, 0);
+
+    str1 = generate_random_string(&n1);
+    str2 = generate_random_string(&n2);
+    if (TN_UNLIKELY(u32_cmp2(str1, n1, str2, n2) == 0))
+       return;
+    tn_edit_generate_sequence(n1, str1, n2, str2, &dest12);
+    tn_edit_generate_sequence(n2, str2, n1, str1, &dest21);
+    ck_assert(!tn_edit_merge_sequence(dest12.len / sizeof(*diff12), diff12,
+                                      dest21.len / sizeof(*diff21), diff21,
+                                      &dest));
+    tn_free(TN_GLOC(str1));
+    tn_free(TN_GLOC(str2));
+    tn_free(TN_GLOC(diff12));
+    tn_free(TN_GLOC(diff21));
+    tn_free(TN_GLOC(merge));
+
+
+TEST(test_edit_intersect_seq_self, OK, ONCE)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+
+    items = generate_random_edit_seq(&n);
+    tn_edit_intersect_sequence(n, items, n, items, &dest);
+    ck_assert(tn_edit_seq_eq(n, items,
+                             dest.len / sizeof(*result),
+                             result));
+    tn_free(TN_GLOC(items));
+    tn_free(TN_GLOC(result));
+
+
+TEST(test_edit_intersect_seq_empty_right, OK, ONCE)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+
+    items = generate_random_edit_seq(&n);
+    tn_edit_intersect_sequence(n, items, 0, NULL, &dest);
+    ck_assert_uint_eq(dest.len, 0);
+    ck_assert_ptr_eq(result, NULL);
+    tn_free(TN_GLOC(items));
+
+TEST(test_edit_intersect_seq_empty_left, OK, ONCE)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+
+    items = generate_random_edit_seq(&n);
+    tn_edit_intersect_sequence(0, NULL, n, items, &dest);
+    ck_assert_uint_eq(dest.len, 0);
+    ck_assert_ptr_eq(result, NULL);
+    tn_free(TN_GLOC(items));
+
+TEST(test_edit_intersect_seq_comm)
+    unsigned n1;
+    unsigned n2;
+    tn_edit_item *items1 = NULL;
+    tn_edit_item *items2 = NULL;
+    tn_edit_item *result1 = NULL;
+    tn_buffer dest1 = TN_BUFFER_INIT(TN_GLOC(result1), 0, 0);
+    tn_edit_item *result2 = NULL;
+    tn_buffer dest2 = TN_BUFFER_INIT(TN_GLOC(result2), 0, 0);
+
+    items1 = generate_random_edit_seq(&n1);
+    items2 = generate_random_edit_seq(&n2);
+    tn_edit_intersect_sequence(n1, items1, n2, items2, &dest1);
+    tn_edit_intersect_sequence(n2, items2, n1, items1, &dest2);
+    ck_assert(tn_edit_seq_eq(dest1.len / sizeof(*result1), result1,
+                             dest2.len / sizeof(*result2), result2));
+    tn_free(TN_GLOC(items1));
+    tn_free(TN_GLOC(items2));
+    tn_free(TN_GLOC(result1));
+    tn_free(TN_GLOC(result2));
+
+
+TEST(test_edit_intersect_seq_split)
+    unsigned n;
+    tn_edit_item *items = NULL;
+    tn_edit_item *items1 = NULL;
+    tn_edit_item *items2 = NULL;
+    tn_edit_item *result = NULL;
+    tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(result), 0, 0);
+    tn_buffer dest1 = TN_BUFFER_INIT(TN_GLOC(items1), 0, 0);
+    tn_buffer dest2 = TN_BUFFER_INIT(TN_GLOC(items2), 0, 0);
+    unsigned i;
+
+    items = generate_random_edit_seq(&n);
+    for (i = 0; i < n; i++)
+    {
+        tn_buffer *current = tn_random_int(0, 1) ? &dest1 : &dest2;
+        *TN_BUFFER_PUSH(current, tn_edit_item, 1) = items[i];
+    }
+
+    tn_edit_intersect_sequence(dest1.len / sizeof(*items1), items1,
+                               dest2.len / sizeof(*items2), items2,
+                               &dest);
+    ck_assert_uint_eq(dest.len, 0);
+    ck_assert_ptr_eq(result, NULL);
+    tn_free(TN_GLOC(items));
+    tn_free(TN_GLOC(items1));
+    tn_free(TN_GLOC(items2));
