@@ -8,13 +8,9 @@ AM_CFLAGS = $(WARN_CFLAGS) $(CODE_COVERAGE_CFLAGS) \
 AM_LDFLAGS = $(WARN_LDFLAGS) $(CODE_COVERAGE_LIBS) \
 			 $(TDB_LIBS) $(TALLOC_LIBS)
 
-CFLAGS_FOR_TESTS = $(AM_CFLAGS) $(CHECK_CFLAGS)
+CFLAGS_FOR_TESTS = $(AM_CFLAGS)
 CPPFLAGS_FOR_TESTS = $(AM_CPPFLAGS) -DUNIT_TESTING=1
-LDADD_FOR_TESTS = $(CHECK_LIBS)
-
-.t.c:
-	$(M4) -DMKT_FILE='$<' -P $(top_srcdir)/mktests.m4 $< >$@
+LDADD_FOR_TESTS = $(top_builddir)/lib/libtntest.a
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \
                   $(top_srcdir)/test-driver
-

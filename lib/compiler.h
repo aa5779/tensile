@@ -305,7 +305,7 @@ extern "C"
  */
 #define TN_CONSTRUCTOR
 #elif defined(HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
-#define TN_CONSTRUCTOR static __attribute__((__constructor__))
+#define TN_CONSTRUCTOR static void __attribute__((__constructor__))
 #else
 #define TN_CONSTRUCTOR constructors_are_not_supported
 #endif
@@ -320,7 +320,7 @@ extern "C"
  */
 #define TN_DESTRUCTOR
 #elif defined(HAVE_FUNC_ATTRIBUTE_DESTRUCTOR)
-#define TN_DESTRUCTOR static __attribute__((__destructor__))
+#define TN_DESTRUCTOR static void __attribute__((__destructor__))
 #else
 #define TN_DESTRUCTOR destructors_are_not_supported
 #endif
@@ -332,7 +332,7 @@ extern "C"
  */
 #define TN_GLOBAL_INIT(_type, _var, _code)      \
     _type _var;                                 \
-    TNA_constructor void _var##_init(void)      \
+    TN_CONSTRUCTOR _var##_init(void)            \
     {                                           \
         _code;                                  \
     }                                           \

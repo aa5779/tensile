@@ -31,7 +31,6 @@ AC_CHECK_LIB([unistring], [u8_check])
 
 PKG_CHECK_MODULES([TDB], [tdb])
 PKG_CHECK_MODULES([TALLOC], [talloc])
-PKG_CHECK_MODULES([CHECK], [check])
 
 AX_GCC_FUNC_ATTRIBUTE([malloc])
 AX_GCC_FUNC_ATTRIBUTE([nonnull])
