@@ -19,8 +19,8 @@ extern "C"
 #ifndef __DOXYGEN__
 #define TNRK_BIT_BASE 56
 #define TNRK_REL_BIT_BASE 24
-#define TNRK_MASK ((1ULL << TNRK_BIT_BASE) - 1)
-#define TNRK_REL_MASK ((1ULL << TNRK_REL_BIT_BASE) - 1)
+#define TNRK_MASK (((uint64_t)1 << TNRK_BIT_BASE) - 1)
+#define TNRK_REL_MASK (((uint32_t)1 << TNRK_REL_BIT_BASE) - 1)
 #endif
 
 /**

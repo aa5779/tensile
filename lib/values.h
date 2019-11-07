@@ -111,7 +111,7 @@ typedef struct tn_edit_item {
 /**
  * @undocumented
  */
-#define TN_EDIT_INSERT (1ull << ((sizeof(size_t) * CHAR_BIT) - 1))
+#define TN_EDIT_INSERT ((uint64_t)1 << ((sizeof(size_t) * CHAR_BIT) - 1))
 
 #ifdef __cplusplus
 }

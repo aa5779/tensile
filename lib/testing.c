@@ -3,12 +3,15 @@
  *
  * SPDX-License-Identifier: MIT
  */
-
+#define _GNU_SOURCE 1
+#define _POSIX_C_SOURCE 200809L
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <signal.h>
+#include <string.h>
 #include <talloc.h>
 #include "testing.h"
 
@@ -36,7 +39,7 @@ abort_on_talloc(const char *msg)
     exit(TNT_EXIT_FAIL);
 }
 
-static void noreturn
+noreturn static void
 test_function(const tnt_test_descr *descr,
               unsigned long ntest, unsigned i)
 {
@@ -55,8 +58,8 @@ test_function(const tnt_test_descr *descr,
 int
 main(void)
 {
-    const char *scale_str = getenv("TN_TESTS_SCALE");
-    unsigned long scale = (scale_str == NULL ? TN_TESTS_SCALE :
+    const char *scale_str = getenv("TNT_TESTS_SCALE");
+    unsigned long scale = (scale_str == NULL ? TNT_TESTS_SCALE :
                            strtoul(scale_str, NULL, 10));
     unsigned long ntests = 0;
     tnt_test_descr *iter;
@@ -69,13 +72,14 @@ main(void)
         else
             ntests++;
     }
+    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
     printf("1..%lu\n", ntests);
 
     for (iter = tnt_test_descr_first; iter != NULL; iter = iter->next)
     {
         unsigned i;
 
-        for (i = 0; i < iter->iterated ? scale : 1; i++, testno++)
+        for (i = 0; i < (iter->iterated ? scale : 1); i++, testno++)
         {
             pid_t child = fork();
             if (child == (pid_t)-1)
@@ -92,7 +96,7 @@ main(void)
 
                 if (WIFSIGNALED(status))
                 {
-                    failed = WTERMSIG(status) == iter->expect_signal;
+                    failed = WTERMSIG(status) != iter->expect_signal;
                     if (failed)
                     {
                         tnt_log("Killed by signal %d (%s)", WTERMSIG(status),
@@ -101,9 +105,25 @@ main(void)
                 }
                 else if (WIFEXITED(status))
                 {
-                    switch (W
+                    switch (WEXITSTATUS(status))
+                    {
+                        case TNT_EXIT_BAILOUT:
+                            exit(TNT_EXIT_BAILOUT);
+                            break;
+                        case TNT_EXIT_TRIVIAL:
+                            printf("ok %lu %s # SKIP Trivial\n", testno,
+                                   iter->descr);
+                            continue;
+                        default:
+                            failed = iter->expect_signal != 0 ||
+                                WEXITSTATUS(status) != iter->expect_status;
+                            break;
+                    }
                 }
+                printf("%s %lu %s%s\n", failed ? "not ok" : "ok", testno,
+                       iter->descr, iter->expect_fail ? " # TODO" : "");
             }
         }
     }
+    return 0;
 }
