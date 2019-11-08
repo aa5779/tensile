@@ -13,14 +13,16 @@ tn_ref_generate(TN_UNUSED unsigned _i, tn_ref *ref)
 
 #define tn_ref_cleanup(_ref) ((void)0)
 
-TESTDEF_SINGLE(test_ref_incr_zero, "Increment a ref by zero")
+TESTDEF_SINGLE(test_ref_incr_zero,
+               "Increment a ref by zero is no-op")
 {
     FORALL(tn_ref, ref1,
            tn_ref ref2 = tn_ref_add(ref1, 0);
            tnt_assert(tn_ref_eq(ref1, ref2)));
 }
 
-TESTDEF(test_ref_incr_nzero, "Increment a ref by non-zero")
+TESTDEF(test_ref_incr_nzero,
+        "Increment a ref by non-zero is not a no-op")
 {
     FORALL(tn_ref, ref1,
            unsigned r = (unsigned)((uint64_t)random() + 1);
@@ -29,11 +31,11 @@ TESTDEF(test_ref_incr_nzero, "Increment a ref by non-zero")
            tnt_assert(tn_ref_le(ref1, ref2));
            tnt_assert_op(uint64_t,
                          ref1.hi >> TNRK_BIT_BASE, ==,
-                         ref2.hi >> TNRK_BIT_BASE);
-        );
+                         ref2.hi >> TNRK_BIT_BASE));
 }
 
-TESTDEF_SINGLE(test_ref_incr_overflow_lo, "Overflow lower 64 bits of a ref")
+TESTDEF_SINGLE(test_ref_incr_overflow_lo,
+               "Overflow of the lower 64 bits of a ref is properly handled")
 {
     FORALL(tn_ref, ref1,
            tn_ref ref2;
@@ -42,32 +44,32 @@ TESTDEF_SINGLE(test_ref_incr_overflow_lo, "Overflow lower 64 bits of a ref")
            r = (unsigned)(~0ull - ref1.lo) + 1;
            ref2 = tn_ref_add(ref1, r);
            tnt_assert_op(uint64_t, ref2.hi, ==, ref1.hi + 1);
-           tnt_assert_op(uint64_t, ref2.lo, ==, (uint64_t)0);
-        );
+           tnt_assert_op(uint64_t, ref2.lo, ==, (uint64_t)0));
 }
 
 
-TESTDEF_SINGLE(test_ref_incr_delta_zero, "Reference relative to itself")
+TESTDEF_SINGLE(test_ref_incr_delta_zero,
+               "A reference relative to itself is zero")
 {
     FORALL(tn_ref, ref,
            tn_rel_ref rel = tn_ref_mkrel(ref, ref);
-           tnt_assert_op(unsigned, rel & TNRK_REL_MASK, ==, 0);
-        );
+           tnt_assert_op(unsigned, rel & TNRK_REL_MASK, ==, 0));
 }
 
-TESTDEF(test_ref_delta_nzero, "Relative reference")
+TESTDEF(test_ref_delta_nzero,
+        "A relative reference is valid")
 {
     FORALL(tn_ref, ref1,
            unsigned r = (unsigned)((random() & TNRK_REL_MASK) + 1);
            tn_ref ref2 = tn_ref_add(ref1, r);
            tn_rel_ref rel = tn_ref_mkrel(ref1, ref2);
            tnt_assert_op(unsigned, rel & TNRK_REL_MASK, ==, r);
-           tnt_assert_op(uint64_t, (uint64_t)(rel >> TNRK_REL_BIT_BASE), ==, ref2.hi >> TNRK_BIT_BASE);
-        );
+           tnt_assert_op(uint64_t, (uint64_t)(rel >> TNRK_REL_BIT_BASE), ==,
+                         ref2.hi >> TNRK_BIT_BASE));
 }
 
 TESTDEF_SINGLE(test_ref_delta_overflow_lo,
-               "Relative reference with ref lower bits wraparound")
+               "A relative reference with lower bits wraparound is valid")
 {
     tn_ref ref1;
     tn_ref ref2;
@@ -83,7 +85,8 @@ TESTDEF_SINGLE(test_ref_delta_overflow_lo,
     tnt_assert_op(unsigned, rel & TNRK_REL_MASK, ==, r + 1);
 }
 
-TESTDEF(test_ref_rel, "Add and subtract relative references")
+TESTDEF(test_ref_rel,
+        "A relative reference added to the base yields the original reference")
 {
     FORALL(tn_ref, ref1,
            tn_rel_ref rel = random();
@@ -91,11 +94,10 @@ TESTDEF(test_ref_rel, "Add and subtract relative references")
            tn_rel_ref rel2 = tn_ref_mkrel(ref1, ref2);
            tnt_assert_op(unsigned, rel, ==, rel2);
            tnt_assert_op(uint64_t, (uint64_t)(rel >> TNRK_REL_BIT_BASE), ==,
-                         ref2.hi >> TNRK_BIT_BASE);
-        );
+                         ref2.hi >> TNRK_BIT_BASE));
 }
 
-TESTDEF(test_ref_rebase, "Rebasing references")
+TESTDEF(test_ref_rebase, "Rebasing references work")
 {
     FORALL(tn_ref, ref,
            tn_ref rebase = tn_ref_rebase(ref, ref);
@@ -103,11 +105,11 @@ TESTDEF(test_ref_rebase, "Rebasing references")
            tnt_assert_op(uint64_t, rebase.hi & TNRK_MASK, ==,
                          (ref.hi & TNRK_MASK) << 1);
            tnt_assert_op(uint64_t, rebase.hi >> TNRK_BIT_BASE, ==,
-                         ref.hi >> TNRK_BIT_BASE);
-        );
+                         ref.hi >> TNRK_BIT_BASE));
 }
 
-TESTDEF_SINGLE(test_ref_rebase_carry, "Rebase with lower bits overflow")
+TESTDEF_SINGLE(test_ref_rebase_carry,
+               "Rebasing when lower bits overflow work")
 {
     tn_ref ref = {random(), ~0ull};
     tn_ref base = {0, 1};
@@ -116,20 +118,20 @@ TESTDEF_SINGLE(test_ref_rebase_carry, "Rebase with lower bits overflow")
     tnt_assert_op(uint64_t, rebase.hi, ==, ref.hi + 1);
 }
 
-TESTDEF_SINGLE(test_ref_eq_self, "Reference is equal to itself")
+TESTDEF_SINGLE(test_ref_eq_self,
+               "A reference is equal to itself")
 {
       FORALL(tn_ref, ref,
              tnt_assert(tn_ref_eq(ref, ref));
-             tnt_assert(tn_ref_le(ref, ref));
-          );
+             tnt_assert(tn_ref_le(ref, ref)));
 }
 
-TESTDEF_SINGLE(test_ref_neq, "Distinct references are not equal")
+TESTDEF_SINGLE(test_ref_neq,
+               "Only the same reference is equal to it")
 {
     FORALL(tn_ref, ref,
            tn_ref ref1 = {~ref.hi, ref.lo};
-           tnt_assert(!tn_ref_eq(ref, ref1));
-        );
+           tnt_assert(!tn_ref_eq(ref, ref1)));
 }
 
 TESTDEF_SINGLE(test_ref_le, "References are totally ordered")
@@ -137,19 +139,18 @@ TESTDEF_SINGLE(test_ref_le, "References are totally ordered")
     FORALL(tn_ref, ref1,
            FORALL(tn_ref, ref2,
                   ref2.hi = (ref2.hi & TNRK_MASK) | (ref1.hi & ~TNRK_MASK);
-                  tnt_assert(tn_ref_le(ref1, ref2) || tn_ref_le(ref2,
-                  ref1));
-               ));
+                  tnt_assert(tn_ref_le(ref1, ref2) ||
+                             tn_ref_le(ref2, ref1))));
 }
 
 TESTDEF_SINGLE(test_ref_kind, "Checking reference type bits")
-{               
+{
     for (enum tn_ref_kind kind = TNRK_STATIC;
          kind <= TNRK_OP_INDIRECT;
          kind++)
-    {   
+    {
         tn_ref ref = {(uint64_t)tn_ref_request_kind(kind) << TNRK_BIT_BASE,
-                    (uint64_t)random()};
+                      (uint64_t)random()};
         tnt_assert(tn_ref_is_kind(ref, kind));
     }
 }

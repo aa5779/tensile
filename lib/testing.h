@@ -56,8 +56,8 @@ extern bool tnt_mark_as_trivial;
         }                                       \
     } while (0)
 
-#define tnt_assert(_cond)                                   \
-    tnt_assertion(_cond, "Assertion failed: %s", #_cond)
+#define tnt_assert(_cond)                                               \
+    tnt_assertion(_cond, "Assertion failed: %s @ %d", #_cond, __LINE__)
 
 #define tnt_assert_op(_type, _v1, _op, _v2)                             \
     do {                                                                \
@@ -67,8 +67,8 @@ extern bool tnt_mark_as_trivial;
                       "Assertion failed: %s"                            \
                       "(" tnt_assert_fmt_spec_##_type ") "              \
                       #_op " %s "                                       \
-                      "(" tnt_assert_fmt_spec_##_type ")",              \
-                      #_v1, __v1, #_v2, __v2);                          \
+                      "(" tnt_assert_fmt_spec_##_type ") @ %d",         \
+                      #_v1, __v1, #_v2, __v2, __LINE__);                \
     } while (0)
 
 #define tnt_assert_op_type_char char
@@ -106,8 +106,8 @@ extern bool tnt_mark_as_trivial;
         tnt_assertion(_f(__v1, __v2) _op 0,                             \
                       "Assertion failed: %s %s"                         \
                       "(" tnt_assert_fmt_spec_f##_f ") " #_op " %s"     \
-                      "(" tnt_assert_fmt_spec_f##_f ")",                \
-                      #_f, #_v1, __v1, #_v2, __v2);                     \
+                      "(" tnt_assert_fmt_spec_f##_f ") @ %d",           \
+                      #_f, #_v1, __v1, #_v2, __v2, __LINE__);           \
     } while (0)
 
 #define tnt_assert_fop_type_strcmp const char *
@@ -119,9 +119,9 @@ extern bool tnt_mark_as_trivial;
         bool __v1 = (_cond1);                                           \
         bool __v2 = (_cond2);                                           \
         tnt_assertion(__v1 == __v2,                                     \
-                      "Assertion failed: %s (%s) <=> %s (%s)",          \
+                      "Assertion failed: %s (%s) <=> %s (%s) @ %d",     \
                       #_cond1, __v1 ? "true" : "false",                 \
-                      #_cond2, __v2 ? "true" : "false");                \
+                      #_cond2, __v2 ? "true" : "false", __LINE__);      \
     } while (0)
 
 typedef void (*tnt_test_fn)(unsigned i);

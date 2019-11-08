@@ -274,7 +274,8 @@ TESTDEF_SINGLE(test_cow, "Copy on write")
     tn_free(TN_GLOC(ctx2));
 }
 
-TESTDEF_SINGLE(test_append_buffer_null, "Append to a an empty buffer")
+TESTDEF_SINGLE(test_append_buffer_null,
+               "Append to a an empty buffer works")
 {
     char *str = NULL;
     tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(str), 0, 0);
@@ -287,7 +288,8 @@ TESTDEF_SINGLE(test_append_buffer_null, "Append to a an empty buffer")
     tn_free(TN_GLOC(str));
 }
 
-TESTDEF_SINGLE(test_append_buffer_do_append, "Append to a non-empty buffer")
+TESTDEF_SINGLE(test_append_buffer_do_append,
+               "Append to a non-empty buffer works")
 {
     char *str = NULL;
     tn_buffer buf;
@@ -303,7 +305,8 @@ TESTDEF_SINGLE(test_append_buffer_do_append, "Append to a non-empty buffer")
     tn_free(TN_GLOC(str));
 }
 
-TESTDEF_SINGLE(test_append_buffer_append_delta, "Buffer pre-allocation")
+TESTDEF_SINGLE(test_append_buffer_append_delta,
+               "Buffer has some space pre-allocated")
 {
     char *str = NULL;
     tn_buffer buf = TN_BUFFER_INIT(TN_GLOC(str), 0, 0);
@@ -319,7 +322,8 @@ TESTDEF_SINGLE(test_append_buffer_append_delta, "Buffer pre-allocation")
     tn_free(TN_GLOC(str));
 }
 
-TESTDEF_SINGLE(test_append_buffer_offset, "Buffer offset")
+TESTDEF_SINGLE(test_append_buffer_offset,
+               "Appending to a buffer with non-zero offset works")
 {
     mem_child_flex *flex = NULL;
     int *app = NULL;
