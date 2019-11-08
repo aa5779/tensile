@@ -11,7 +11,7 @@ tn_ref_generate(TN_UNUSED unsigned _i, tn_ref *ref)
     ref->hi &= ~(1ULL << (TNRK_BIT_BASE - 1));
 }
 
-b#define tn_ref_cleanup(_ref) ((void)0)
+#define tn_ref_cleanup(_ref) ((void)0)
 
 TESTDEF_SINGLE(test_ref_incr_zero, "Increment a ref by zero")
 {

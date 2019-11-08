@@ -363,114 +363,137 @@ TESTDEF_SINGLE(test_charset_intersect_full, "∀ C : CS, C ∩ U = C")
         );
 }
 
+TESTDEF_SINGLE(test_charset_intersect_lower,
+               "An intersection of a character range and "
+               "its lower part is this part")
+{
+    PRODUCING(tn_charset_range, csi,
+              tn_charset_range r1;
+              tn_charset_range r2;
+
+              r1.lo = tn_random_int(0, INT32_MAX);
+              r1.hi = tn_random_int(r1.lo, INT32_MAX);
+              r2.hi = tn_random_int(r1.lo, r1.hi);
+              r2.lo = r1.lo;
+              tn_charset_generate_intersect(1, &r1, 1, &r2,
+                                            &csi_buffer);
+              tnt_assert_op(size_t, csi_buffer.len, ==, sizeof(*csi));
+              tnt_assert_op(ucs4_t, csi->lo, ==, r2.lo);
+              tnt_assert_op(ucs4_t, csi->hi, ==, r2.hi);
+        );
+}
+
+TESTDEF(test_charset_intersect_inner,
+        "An intersection of a character range and "
+        "its subrange is this subrange")
+{
+    PRODUCING(tn_charset_range, csi,
+              tn_charset_range r1;
+              tn_charset_range r2;
+
+              r1.lo = tn_random_int(0, INT32_MAX);
+              r1.hi = tn_random_int(r1.lo, INT32_MAX);
+              r2.lo = tn_random_int(r1.lo, r1.hi);
+              r2.hi = tn_random_int(r2.lo, r1.hi);
+              tn_charset_generate_intersect(1, &r1, 1, &r2, &csi_buffer);
+              tnt_assert_op(size_t, csi_buffer.len, ==, sizeof(*csi));
+              tnt_assert_op(ucs4_t, csi->lo, ==, r2.lo);
+              tnt_assert_op(ucs4_t, csi->hi, ==, r2.hi);
+        );
+}
+
+TESTDEF(test_charset_intersect_outer,
+        "Overlapping character ranges intersect")
+{
+    PRODUCING(tn_charset_range, csi,
+              tn_charset_range r1;
+              tn_charset_range r2;
+
+              r1.lo = tn_random_int(0, INT32_MAX);
+              r1.hi = tn_random_int(r1.lo, INT32_MAX);
+              r2.lo = tn_random_int(r1.lo, r1.hi);
+              r2.hi = tn_random_int(r1.hi, INT32_MAX);
+              tn_charset_generate_intersect(1, &r1, 1, &r2, &csi_buffer);
+              tnt_assert_op(size_t, csi_buffer.len, ==, sizeof(*csi));
+              tnt_assert_op(ucs4_t, csi->lo, ==, r2.lo);
+              tnt_assert_op(ucs4_t, csi->hi, ==, r1.hi);
+        );
+}
+
+TESTDEF_SINGLE(test_charset_intersect_upper,
+               "An intersection of a character range and "
+               "its upper part is this part")
+{
+    PRODUCING(tn_charset_range, csi,
+              tn_charset_range r1;
+              tn_charset_range r2;
+
+              r1.lo = tn_random_int(0, INT32_MAX);
+              r1.hi = tn_random_int(r1.lo, INT32_MAX);
+              r2.lo = tn_random_int(r1.lo, r1.hi);
+              r2.hi = r1.hi;
+              tn_charset_generate_intersect(1, &r1, 1, &r2,
+                                            &csi_buffer);
+              tnt_assert_op(size_t, csi_buffer.len, ==, sizeof(*csi));
+              tnt_assert_op(ucs4_t, csi->lo, ==, r2.lo);
+              tnt_assert_op(ucs4_t, csi->hi, ==, r2.hi);
+        );
+}
+
+TESTDEF(test_charset_intersect_subset,
+        "∀ C₁, C₂ : CS, C₁ ∩ C₂ ⊂ C₁ ∧ C₁ ∩ C₂ ⊂ C₂")
+{
+    FORALL(tnt_charset, cs1,
+           FORALL(tnt_charset, cs2,
+                  PRODUCING(tn_charset_range, csi,
+                            unsigned n;
+
+                            tn_charset_generate_intersect(cs1.n, cs1.ranges,
+                                                          cs2.n, cs2.ranges,
+                                                          &csi_buffer);
+                            tnt_trivial(csi_buffer.len == 0);
+                            tnt_assert_op(size_t,
+                                          csi_buffer.len % sizeof(*csi), ==, 0);
+                            n = csi_buffer.len / sizeof(*csi);
+                            tnt_assert(tn_charset_valid(n, csi));
+                            tnt_assert(tn_charset_subset(n, csi, cs1.n,
+                                                         cs1.ranges));
+                            tnt_assert(tn_charset_subset(n, csi, cs2.n,
+                                                         cs2.ranges));
+                      )
+               )
+        );
+}
+
+TESTDEF(test_charset_intersect_comm, "∀ C₁, C₂ : CS, C₁ ∩ C₂ = C₂ ∩ C₁")
+{
+    FORALL(tnt_charset, cs1,
+           FORALL(tnt_charset, cs2,
+                  PRODUCING(tn_charset_range, csi1,
+                            PRODUCING(tn_charset_range, csi2,
+                                      tn_charset_generate_intersect(cs1.n,
+                                                                    cs1.ranges,
+                                                                    cs2.n,
+                                                                    cs2.ranges,
+                                                                    &csi1_buffer);
+                                      tn_charset_generate_intersect(cs2.n,
+                                                                    cs2.ranges,
+                                                                    cs1.n,
+                                                                    cs1.ranges,
+                                                                    &csi2_buffer);
+                                      tnt_trivial(csi1_buffer.len == 0);
+                                      tnt_assert_op(size_t,
+                                                    csi1_buffer.len, ==,
+                                                    csi2_buffer.len);
+                                      tnt_assert(memcmp(csi1, csi2,
+                                                        csi1_buffer.len) == 0);
+                                )
+                      )
+               )
+        );
+}
+
 /*
-TESTDEF_SINGLE(test_charset_intersect_bisect, 
-"Intersection of a charset bisection is empty")
-      tn_charset_range r1;
-      tn_charset_range r2;
-      tn_charset_range *csi = NULL;
-      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
-
-      r1.lo = tn_random_int(0, INT32_MAX);
-      r1.hi = tn_random_int(r1.lo, INT32_MAX);
-      r2.hi = tn_random_int(r1.lo, r1.hi);
-      r2.lo = r1.lo;
-      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
-      ck_assert_uint_eq(dest.len, sizeof(*csi));
-      ck_assert_uint_eq(csi->lo, r2.lo);
-      ck_assert_uint_eq(csi->hi, r2.hi);
-      tn_free(TN_GLOC(csi));
-
-TESTDEF(test_charset_intersect_inner, "")
-      tn_charset_range r1;
-      tn_charset_range r2;
-      tn_charset_range *csi = NULL;
-      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
-
-      r1.lo = tn_random_int(0, INT32_MAX);
-      r1.hi = tn_random_int(r1.lo, INT32_MAX);
-      r2.lo = tn_random_int(r1.lo, r1.hi);
-      r2.hi = tn_random_int(r2.lo, r1.hi);
-      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
-      ck_assert_uint_eq(dest.len, sizeof(*csi));
-      ck_assert_uint_eq(csi->lo, r2.lo);
-      ck_assert_uint_eq(csi->hi, r2.hi);
-      tn_free(TN_GLOC(csi));
-
-TESTDEF(test_charset_intersect_outer, "")
-      tn_charset_range r1;
-      tn_charset_range r2;
-      tn_charset_range *csi = NULL;
-      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
-
-      r1.lo = tn_random_int(0, INT32_MAX);
-      r1.hi = tn_random_int(r1.lo, INT32_MAX);
-      r2.lo = tn_random_int(r1.lo, r1.hi);
-      r2.hi = tn_random_int(r1.hi, INT32_MAX);
-      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
-      ck_assert_uint_eq(dest.len, sizeof(*csi));
-      ck_assert_uint_eq(csi->lo, r2.lo);
-      ck_assert_uint_eq(csi->hi, r1.hi);
-      tn_free(TN_GLOC(csi));
-
-TESTDEF_SINGLE(test_charset_intersect_bisect2, "")
-      tn_charset_range r1;
-      tn_charset_range r2;
-      tn_charset_range *csi = NULL;
-      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
-
-      r1.lo = tn_random_int(0, INT32_MAX);
-      r1.hi = tn_random_int(r1.lo, INT32_MAX);
-      r2.lo = tn_random_int(r1.lo, r1.hi);
-      r2.hi = r1.hi;
-      tn_charset_generate_intersect(1, &r1, 1, &r2, &dest);
-      ck_assert_uint_eq(dest.len, sizeof(*csi));
-      ck_assert_uint_eq(csi->lo, r2.lo);
-      ck_assert_uint_eq(csi->hi, r2.hi);
-      tn_free(TN_GLOC(csi));
-
-TESTDEF(test_charset_intersect_subset, "")
-      unsigned n1;
-      tn_charset_range *cs1;
-      unsigned n2;
-      tn_charset_range *cs2;
-      tn_charset_range *csi = NULL;
-      tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csi), 0, 0);
-      unsigned n;
-
-      cs1 = generate_random_ranges(&n1);
-      cs2 = generate_random_ranges(&n2);
-      tn_charset_generate_intersect(n1, cs1, n2, cs2, &dest);
-      ck_assert_uint_eq(dest.len % sizeof(*csi), 0);
-      n = dest.len / sizeof(*csi);
-      tnt_assert(tn_charset_valid(n, csi));
-      tnt_assert(tn_charset_subset(n, csi, n1, cs1));
-      tnt_assert(tn_charset_subset(n, csi, n2, cs2));
-      tn_free(TN_GLOC(cs1));
-      tn_free(TN_GLOC(cs2));
-      tn_free(TN_GLOC(csi));
-
-TESTDEF(test_charset_intersect_comm, "")
-      unsigned n1;
-      tn_charset_range *cs1;
-      unsigned n2;
-      tn_charset_range *cs2;
-      tn_charset_range *csi1 = NULL;
-      tn_buffer dest1 = TN_BUFFER_INIT(TN_GLOC(csi1), 0, 0);
-      tn_charset_range *csi2 = NULL;
-      tn_buffer dest2 = TN_BUFFER_INIT(TN_GLOC(csi2), 0, 0);
-
-      cs1 = generate_random_ranges(&n1);
-      cs2 = generate_random_ranges(&n2);
-      tn_charset_generate_intersect(n1, cs1, n2, cs2, &dest1);
-      tn_charset_generate_intersect(n2, cs2, n1, cs1, &dest2);
-      ck_assert_uint_eq(dest1.len, dest2.len);
-      tnt_assert(memcmp(csi1, csi2, dest1.len) == 0);
-      tn_free(TN_GLOC(cs1));
-      tn_free(TN_GLOC(cs2));
-      tn_free(TN_GLOC(csi1));
-      tn_free(TN_GLOC(csi2));
-
 TESTDEF_SINGLE(test_charset_complement_empty, "")
       tn_charset_range *csc = NULL;
       tn_buffer dest = TN_BUFFER_INIT(TN_GLOC(csc), 0, 0);
