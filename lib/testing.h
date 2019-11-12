@@ -1,11 +1,12 @@
-/*
- * Copyright (c) 2019 Artem V. Andreev
- *
- * SPDX-License-Identifier: MIT
- */
-
 /** @file
  *  Testing
+ * @author Artem V. Andreev
+ * @copyright
+ * @parblock
+ * &copy; 2019 Artem V. Andreev
+ *
+ * @license{MIT}
+ * @endparblock
  */
 #ifndef TNH_TESTING_H
 #define TNH_TESTING_H 1

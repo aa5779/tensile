@@ -3,14 +3,17 @@
 H="${1//./_}"
 
 cat >"$1" <<EOF
-/*
- * Copyright (c) `date +%Y` Artem V. Andreev
- *
- * SPDX-License-Identifier: ${2:+MIT}
- */
-
 /** @file
  *  $3
+ * @author Artem V. Andreev
+ * @copyright
+ * @parblock
+ * &copy; `date +%Y` Artem V. Andreev
+ *
+ * SPDX-License-Identifier: ${2:-MIT}
+ * @endparblock
+ */
+
  */
 #ifndef TNH_${H^^*}
 #define TNH_${H^^*} 1
