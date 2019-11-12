@@ -181,8 +181,14 @@ typedef void (*tnt_test_fn)(unsigned i);
 /**
  * @undocumented
  */
+typedef void (*tnt_cleanup_fn)(void);
+
+/**
+ * @undocumented
+ */
 typedef struct tnt_test_descr {
     tnt_test_fn test; /**< @undocumented */
+    tnt_cleanup_fn cleanup; /**< @undocumented */
     const char *descr; /**< @undocumented */
     int expect_status; /**< @undocumented */
     int expect_signal; /**< @undocumented */
@@ -218,11 +224,12 @@ extern tnt_test_descr **tnt_test_descr_last;
 /**
  * @undocumented
  */
-#define TESTDEFX(_name, _descr, _expect, _expectsig,                    \
+#define TESTDEFX(_name, _descr, _cleanup, _expect, _expectsig,          \
                  _expectfail, _iterated)                                \
     static void _name(unsigned _i);                                     \
     static tnt_test_descr _name##_struct = {                            \
         .test = _name,                                                  \
+        .cleanup = _cleanup,                                            \
         .descr = _descr " @ " TNT_STRINGIFY(__LINE__),                  \
         .expect_status = _expect,                                       \
         .expect_signal = _expectsig,                                    \
@@ -241,31 +248,44 @@ extern tnt_test_descr **tnt_test_descr_last;
 /**
  * @undocumented
  */
-#define TESTDEF(_name, _descr) TESTDEFX(_name, _descr, 0, 0, false, true)
+#define TESTDEF(_name, _descr)                              \
+        TESTDEFX(_name, _descr, NULL, 0, 0, false, true)
 
 /**
  * @undocumented
  */
-#define TESTDEF_SINGLE(_name, _descr)               \
-        TESTDEFX(_name, _descr, 0, 0, false, false)
+#define TESTDEF_SINGLE(_name, _descr)                       \
+        TESTDEFX(_name, _descr, NULL, 0, 0, false, false)
 
 /**
  * @undocumented
  */
-#define TESTDEF_XFAIL(_name, _descr)                \
-        TESTDEFX(_name, _descr, 0, 0, true, false)
+#define TESTDEF_CLEANUP(_name, _descr, _cleanup)            \
+        TESTDEFX(_name, _descr, _cleanup, 0, 0, false, true)
 
 /**
  * @undocumented
  */
-#define TESTDEF_SIG(_name, _descr, _sig)                    \
-    TESTDEFX(_name, _descr, 0, SIG ## _sig, false, false)
+#define TESTDEF_SINGLE_CLEANUP(_name, _descr, _cleanup)     \
+        TESTDEFX(_name, _descr, _cleanup, 0, 0, false, false)
 
 /**
  * @undocumented
  */
-#define TESTDEF_EXIT(_name, _descr, _exit)              \
-    TESTDEFX(_name, _descr, _exit, 0, false, false)
+#define TESTDEF_XFAIL(_name, _descr)                        \
+        TESTDEFX(_name, _descr, NULL, 0, 0, true, false)
+
+/**
+ * @undocumented
+ */
+#define TESTDEF_SIG(_name, _descr, _sig)                        \
+    TESTDEFX(_name, _descr, NULL, 0, SIG ## _sig, false, false)
+
+/**
+ * @undocumented
+ */
+#define TESTDEF_EXIT(_name, _descr, _exit)                  \
+    TESTDEFX(_name, _descr, NULL, _exit, 0, false, false)
 
 /**
  * @undocumented

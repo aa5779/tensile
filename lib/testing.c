@@ -136,6 +136,8 @@ main(void)
                 if (waitpid(child, &status, 0) != child)
                     tnt_bailout("waitpid() failed");
 
+                if (iter->cleanup != NULL)
+                    iter->cleanup();
                 if (WIFSIGNALED(status))
                 {
                     failed = WTERMSIG(status) != iter->expect_signal;

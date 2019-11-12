@@ -32,3 +32,14 @@ TESTDEF_XFAIL(test_expect_fail, "Expected to fail")
 {
     tnt_assert(false);
 }
+
+static void
+cleanup_test(void)
+{
+    tnt_log("%s", "Cleanup");
+}
+
+TESTDEF_SINGLE_CLEANUP(test_cleanup, "Test with cleanup", cleanup_test)
+{
+    tnt_assert(true);
+}
