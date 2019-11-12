@@ -1233,3 +1233,133 @@ TESTDEF(test_edit_intersect_seq_split,
                                          inter_buffer.len / sizeof(*inter),
                                          inter)))))));
 }
+
+TESTDEF_SINGLE(test_edit_diff_seq_self, "∀ E : ES, E ∖ E = ∅")
+{
+    FORALL(tnt_edit_seq, seq,
+           PRODUCING(tn_edit_item, diff,
+                     tn_edit_except_sequence(seq.n, seq.edits,
+                                             seq.n, seq.edits,
+                                             &diff_buffer);
+                     tnt_assert_op(size_t, diff_buffer.len, ==, 0);
+                     tnt_assert_op(ptr, diff, ==, NULL)));
+}
+
+TESTDEF_SINGLE(test_edit_diff_seq_empty_right, "∀ E : ES, E ∖ ∅ = E")
+{
+    FORALL(tnt_edit_seq, seq,
+           PRODUCING(tn_edit_item, diff,
+                     tn_edit_except_sequence(seq.n, seq.edits, 0, NULL,
+                                             &diff_buffer);
+                     tnt_assert(tn_edit_seq_eq(seq.n, seq.edits,
+                                               diff_buffer.len /
+                                               sizeof(*diff),
+                                               diff))));
+}
+
+TESTDEF_SINGLE(test_edit_diff_seq_empty_left, "∀ E : ES, ∅ ∖ E = ∅")
+{
+    FORALL(tnt_edit_seq, seq,
+           PRODUCING(tn_edit_item, diff,
+                     tn_edit_except_sequence(0, NULL, seq.n, seq.edits,
+                                             &diff_buffer);
+                     tnt_assert_op(size_t, diff_buffer.len, ==, 0);
+                     tnt_assert_op(ptr, diff, ==, NULL)));
+}
+
+TESTDEF(test_edit_diff_seq_split_disjoint,
+        "Difference of disjoint sequences is equal to the first one")
+{
+    FORALL(tnt_edit_seq, seq,
+           PRODUCING
+           (tn_edit_item, edits1,
+            PRODUCING
+            (tn_edit_item, edits2,
+             PRODUCING
+             (tn_edit_item, diff,
+              unsigned i;
+
+              for (i = 0; i < seq.n; i++)
+              {
+                  tn_buffer *current = tn_random_int(0, 1) ?
+                      &edits1_buffer : &edits2_buffer;
+                  *TN_BUFFER_PUSH(current, tn_edit_item, 1) = seq.edits[i];
+              }
+
+              tn_edit_except_sequence(edits1_buffer.len / sizeof(*edits1),
+                                      edits1,
+                                      edits2_buffer.len / sizeof(*edits2),
+                                      edits2,
+                                      &diff_buffer);
+              tnt_assert(tn_edit_seq_eq(edits1_buffer.len / sizeof(*edits1),
+                                        edits1,
+                                        diff_buffer.len / sizeof(*diff),
+                                        diff))))));
+}
+
+TESTDEF(test_edit_diff_seq_split,
+        "Difference of a split sequence does not include common elements")
+{
+    FORALL(tnt_edit_seq, seq,
+           PRODUCING
+           (tn_edit_item, seq1,
+            PRODUCING
+            (tn_edit_item, seq2,
+             PRODUCING
+             (tn_edit_item, nocommon,
+              PRODUCING
+              (tn_edit_item, diff,
+               unsigned i;
+
+               for (i = 0; i < seq.n; i++)
+               {
+                   switch (tn_random_int(0, 2))
+                   {
+                       case 0:
+                           *TN_BUFFER_PUSH(&seq1_buffer, tn_edit_item, 1) =
+                               seq.edits[i];
+                           *TN_BUFFER_PUSH(&nocommon_buffer, tn_edit_item, 1) =
+                               seq.edits[i];
+                           break;
+                       case 1:
+                           *TN_BUFFER_PUSH(&seq2_buffer, tn_edit_item, 1) =
+                               seq.edits[i];
+                           break;
+                       case 2:
+                           *TN_BUFFER_PUSH(&seq1_buffer, tn_edit_item, 1) =
+                               seq.edits[i];
+                           *TN_BUFFER_PUSH(&seq2_buffer, tn_edit_item, 1) =
+                               seq.edits[i];
+                           break;
+                       default:
+                           abort();
+                   }
+               }
+
+               tn_edit_except_sequence(seq1_buffer.len / sizeof(*seq1), seq1,
+                                       seq2_buffer.len / sizeof(*seq2), seq2,
+                                       &diff_buffer);
+               tnt_assert(tn_edit_seq_eq(nocommon_buffer.len /
+                                         sizeof(*nocommon),
+                                         nocommon,
+                                         diff_buffer.len / sizeof(*diff),
+                                         diff)))))));
+}
+
+TESTDEF(test_edit_diff_samepos,
+        "Difference at the same position but with different operations "
+        "work as expected")
+{
+    PRODUCING(tn_edit_item, diff,
+              size_t pos = tn_random_int(0, INT32_MAX);
+              ucs4_t ch1 = tn_random_int(0, INT32_MAX);
+              ucs4_t ch2 = tn_random_int(0, INT32_MAX);
+              bool is_insert1 = tn_random_int(0, 1);
+              bool is_insert2 = tn_random_int(0, 1);
+              tn_edit_item seq1 = tn_edit_make_item(pos, is_insert1, ch1);
+              tn_edit_item seq2 = tn_edit_make_item(pos, is_insert2, ch2);
+
+              tn_edit_except_sequence(1, &seq1, 1, &seq2, &diff_buffer);
+              tnt_assert_equiv(is_insert1 != is_insert2 || ch1 != ch2,
+                               diff_buffer.len == sizeof(*diff)));
+}
