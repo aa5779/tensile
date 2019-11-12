@@ -21,6 +21,9 @@ extern "C"
 #include <inttypes.h>
 #include "compiler.h"
 
+/**
+ * @undocumented
+ */
 enum tnt_exit_status {
     TNT_EXIT_OK = 0,
     TNT_EXIT_FAIL,
@@ -28,37 +31,58 @@ enum tnt_exit_status {
     TNT_EXIT_BAILOUT,
 };
 
+/**
+ * @undocumented
+ */
 #define tnt_log(_msg, ...) (printf("# " _msg "\n", __VA_ARGS__));
 
+/**
+ * @undocumented
+ */
 extern bool tnt_mark_as_trivial;
 
+/**
+ * @undocumented
+ */
 #define tnt_trivial(_cond)                      \
     do {                                        \
-        if (_cond)                              \
+        if (TN_UNLIKELY(_cond))                 \
         {                                       \
             tnt_log("%s", #_cond);              \
             tnt_mark_as_trivial = true;         \
         }                                       \
     } while (0)
 
+/**
+ * @undocumented
+ */
 #define tnt_bailout(_msg)                       \
     do {                                        \
         printf("Bail out! %s\n", (_msg));       \
         _Exit(TNT_EXIT_BAILOUT);                \
     } while (0)
 
+/**
+ * @undocumented
+ */
 #define tnt_assertion(_cond, _msg, ...)         \
     do {                                        \
         if (!(_cond))                           \
         {                                       \
             tnt_log(_msg, __VA_ARGS__);         \
-            exit(TNT_EXIT_FAIL);                \
+            _Exit(TNT_EXIT_FAIL);                \
         }                                       \
     } while (0)
 
+/**
+ * @undocumented
+ */
 #define tnt_assert(_cond)                                               \
     tnt_assertion(_cond, "Assertion failed: %s @ %d", #_cond, __LINE__)
 
+/**
+ * @undocumented
+ */
 #define tnt_assert_op(_type, _v1, _op, _v2)                             \
     do {                                                                \
         tnt_assert_op_type_##_type __v1 = (_v1);                        \
@@ -71,6 +95,7 @@ extern bool tnt_mark_as_trivial;
                       #_v1, __v1, #_v2, __v2, __LINE__);                \
     } while (0)
 
+#ifndef __DOXYGEN__
 #define tnt_assert_op_type_char char
 #define tnt_assert_op_type_int int
 #define tnt_assert_op_type_unsigned unsigned
@@ -98,7 +123,11 @@ extern bool tnt_mark_as_trivial;
 #define tnt_assert_fmt_spec_word "%08x"
 #define tnt_assert_fmt_spec_dword "%016" PRIx64
 #define tnt_assert_fmt_spec_ucs4_t "U+%08x"
+#endif
 
+/**
+ * @undocumented
+ */
 #define tnt_assert_fop(_f, _v1, _op, _v2)                               \
     do {                                                                \
         tnt_assert_fop_type_##_f __v1 = (_v1);                          \
@@ -110,10 +139,15 @@ extern bool tnt_mark_as_trivial;
                       #_f, #_v1, __v1, #_v2, __v2, __LINE__);           \
     } while (0)
 
+#ifndef __DOXYGEN__
 #define tnt_assert_fop_type_strcmp const char *
 
 #define tnt_assert_fmt_spec_fstrcmp "%s"
+#endif
 
+/**
+ * @undocumented
+ */
 #define tnt_assert_equiv(_cond1, _cond2)                                \
     do {                                                                \
         bool __v1 = (_cond1);                                           \
@@ -124,24 +158,66 @@ extern bool tnt_mark_as_trivial;
                       #_cond2, __v2 ? "true" : "false", __LINE__);      \
     } while (0)
 
+/**
+ * @undocumented
+ */
+extern void tnt_compare_mem(size_t len1, const void *mem1,
+                            size_t len2, const void *mem2,
+                            const char *msg, int line);
+
+/**
+ * @undocumented
+ */
+#define tnt_assert_mem(_len1, _mem1, _len2, _mem2)                      \
+    (tnt_compare_mem((_len1), (_mem1), (_len2), (_mem2),                \
+                     #_len1 ":" #_mem1 " == " #_len2 ":" #_mem2,        \
+                     __LINE__))
+
+/**
+ * @undocumented
+ */
 typedef void (*tnt_test_fn)(unsigned i);
 
+/**
+ * @undocumented
+ */
 typedef struct tnt_test_descr {
-    tnt_test_fn test;
-    const char *descr;
-    int expect_status;
-    int expect_signal;
-    bool expect_fail;
-    bool iterated;
-    struct tnt_test_descr *next;
+    tnt_test_fn test; /**< @undocumented */
+    const char *descr; /**< @undocumented */
+    int expect_status; /**< @undocumented */
+    int expect_signal; /**< @undocumented */
+    bool expect_fail; /**< @undocumented */
+    bool iterated; /**< @undocumented */
+    struct tnt_test_descr *next; /**< @undocumented */
 } tnt_test_descr;
 
+/** @cond PRIVATE */
+
+/**
+ * @undocumented
+ */
 extern tnt_test_descr *tnt_test_descr_first;
+
+/**
+ * @undocumented
+ */
 extern tnt_test_descr **tnt_test_descr_last;
 
+/**
+ * @undocumented
+ */
 #define TNT_STRINGIFY0(_x) #_x
+
+/**
+ * @undocumented
+ */
 #define TNT_STRINGIFY(_x) TNT_STRINGIFY0(_x)
 
+/** @endcond */
+
+/**
+ * @undocumented
+ */
 #define TESTDEFX(_name, _descr, _expect, _expectsig,                    \
                  _expectfail, _iterated)                                \
     static void _name(unsigned _i);                                     \
@@ -162,20 +238,38 @@ extern tnt_test_descr **tnt_test_descr_last;
                                                                         \
     static void _name(TN_UNUSED unsigned _i)
 
+/**
+ * @undocumented
+ */
 #define TESTDEF(_name, _descr) TESTDEFX(_name, _descr, 0, 0, false, true)
 
+/**
+ * @undocumented
+ */
 #define TESTDEF_SINGLE(_name, _descr)               \
         TESTDEFX(_name, _descr, 0, 0, false, false)
 
+/**
+ * @undocumented
+ */
 #define TESTDEF_XFAIL(_name, _descr)                \
         TESTDEFX(_name, _descr, 0, 0, true, false)
 
+/**
+ * @undocumented
+ */
 #define TESTDEF_SIG(_name, _descr, _sig)                    \
     TESTDEFX(_name, _descr, 0, SIG ## _sig, false, false)
 
+/**
+ * @undocumented
+ */
 #define TESTDEF_EXIT(_name, _descr, _exit)              \
     TESTDEFX(_name, _descr, _exit, 0, false, false)
 
+/**
+ * @undocumented
+ */
 #define FORALL(_type, _var, ...)                \
         do {                                    \
             _type _var;                         \
@@ -184,6 +278,9 @@ extern tnt_test_descr **tnt_test_descr_last;
             _type##_cleanup(&(_var));           \
         } while (0)
 
+/**
+ * @undocumented
+ */
 #define PRODUCING(_type, _var, ...)                                     \
     do {                                                                \
         _type *_var = NULL;                                             \
@@ -192,6 +289,9 @@ extern tnt_test_descr **tnt_test_descr_last;
         tn_free(TN_GLOC(_var));                                         \
     } while (0);
 
+/**
+ * @undocumented
+ */
 #define TNT_TESTS_SCALE 100
 
 #ifdef __cplusplus

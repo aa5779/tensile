@@ -176,9 +176,8 @@ TESTDEF_SINGLE(test_charset_union_self, "∀ C : CS, C ∪ C = C")
            PRODUCING(tn_charset_range, csu,
                      tn_charset_generate_union(cs.n, cs.ranges,
                                                cs.n, cs.ranges, &csu_buffer);
-                     tnt_assert_op(size_t, csu_buffer.len, ==,
-                                   cs.n * sizeof(*cs.ranges));
-                     tnt_assert(memcmp(cs.ranges, csu, csu_buffer.len) == 0)));
+                     tnt_assert_mem(csu_buffer.len, csu,
+                                    cs.n * sizeof(*cs.ranges), cs.ranges)));
 }
 
 TESTDEF_SINGLE(test_charset_union_empty_both, "∅ : CS ∪ ∅ = ∅")
@@ -195,9 +194,8 @@ TESTDEF_SINGLE(test_charset_union_empty_right, "∀ C : CS, C ∪ ∅ = ∅")
            PRODUCING(tn_charset_range, csu,
                      tn_charset_generate_union(cs.n, cs.ranges, 0, NULL,
                                                &csu_buffer);
-                     tnt_assert_op(size_t, csu_buffer.len, ==,
-                                   cs.n * sizeof(*cs.ranges));
-                     tnt_assert(memcmp(cs.ranges, csu, csu_buffer.len) == 0)));
+                     tnt_assert_mem(csu_buffer.len, csu,
+                                    cs.n * sizeof(*cs.ranges), cs.ranges)));
 }
 
 
@@ -207,9 +205,8 @@ TESTDEF_SINGLE(test_charset_union_empty_left, "∀ C : CS, ∅ ∪ C = ∅")
            PRODUCING(tn_charset_range, csu,
                      tn_charset_generate_union(0, NULL, cs.n,
                                                cs.ranges, &csu_buffer);
-                     tnt_assert_op(size_t, csu_buffer.len, ==,
-                                   cs.n * sizeof(*cs.ranges));
-                     tnt_assert(memcmp(cs.ranges, csu, csu_buffer.len) == 0)));
+                     tnt_assert_mem(csu_buffer.len, csu,
+                                    cs.n * sizeof(*cs.ranges), cs.ranges)));
 }
 
 TESTDEF_SINGLE(test_charset_union_full, "∀ C : CS, C υ U = U")
@@ -220,9 +217,8 @@ TESTDEF_SINGLE(test_charset_union_full, "∀ C : CS, C υ U = U")
 
                      tn_charset_generate_union(cs.n, cs.ranges, 1, &full,
                                                &csu_buffer);
-                     tnt_assert_op(size_t, csu_buffer.len, ==,
-                                   sizeof(*cs.ranges));
-                     tnt_assert(memcmp(csu, &full, csu_buffer.len) == 0)));
+                     tnt_assert_mem(csu_buffer.len, csu,
+                                    sizeof(full), &full)));
 }
 
 TESTDEF(test_charset_union_subset,
@@ -260,8 +256,8 @@ TESTDEF(test_charset_union_comm, "∀ C₁, C₂ : CS, C₁ ∪ C₂ = C₂ ∪ 
                     tn_charset_generate_union(cs2.n, cs2.ranges,
                                               cs1.n, cs1.ranges,
                                               &csu2_buffer);
-                    tnt_assert_op(size_t, csu1_buffer.len, ==, csu2_buffer.len);
-                    tnt_assert(memcmp(csu1, csu2, csu1_buffer.len) == 0)))));
+                    tnt_assert_mem(csu1_buffer.len, csu1,
+                                   csu2_buffer.len, csu2)))));
 }
 
 TESTDEF_SINGLE(test_charset_intersect_self, "∀ C : CS, C ∩ C = C")
@@ -271,9 +267,8 @@ TESTDEF_SINGLE(test_charset_intersect_self, "∀ C : CS, C ∩ C = C")
                      tn_charset_generate_intersect(cs.n, cs.ranges,
                                                    cs.n, cs.ranges,
                                                    &csi_buffer);
-                     tnt_assert_op(size_t, csi_buffer.len, ==,
-                                   cs.n * sizeof(*cs.ranges));
-                     tnt_assert(memcmp(cs.ranges, csi, csi_buffer.len) == 0)));
+                     tnt_assert_mem(csi_buffer.len, csi,
+                                    cs.n * sizeof(*cs.ranges), cs.ranges)));
 }
 
 
@@ -317,9 +312,8 @@ TESTDEF_SINGLE(test_charset_intersect_full, "∀ C : CS, C ∩ U = C")
                      tn_charset_generate_intersect(cs.n, cs.ranges,
                                                    1, &full,
                                                    &csi_buffer);
-                     tnt_assert_op(size_t, csi_buffer.len, ==,
-                                   cs.n * sizeof(*csi));
-                     tnt_assert(memcmp(csi, cs.ranges, csi_buffer.len) == 0)));
+                     tnt_assert_mem(csi_buffer.len, csi,
+                                    cs.n * sizeof(*cs.ranges), cs.ranges)));
 }
 
 TESTDEF_SINGLE(test_charset_intersect_lower,
@@ -433,8 +427,8 @@ TESTDEF(test_charset_intersect_comm, "∀ C₁, C₂ : CS, C₁ ∩ C₂ = C₂ 
                                                   cs1.n, cs1.ranges,
                                                   &csi2_buffer);
                     tnt_trivial(csi1_buffer.len == 0);
-                    tnt_assert_op(size_t, csi1_buffer.len, ==, csi2_buffer.len);
-                    tnt_assert(memcmp(csi1, csi2, csi1_buffer.len) == 0)))));
+                    tnt_assert_mem(csi1_buffer.len, csi1,
+                                   csi2_buffer.len, csi2)))));
 }
 
 TESTDEF_SINGLE(test_charset_complement_empty, "∁ ∅ : CS = U")
@@ -505,8 +499,8 @@ TESTDEF(test_charset_complement_complement, "∀ C : CS, ∁ ∁ C = C")
              tn_charset_generate_complement(cs.n, cs.ranges, &csc_buffer);
              tn_charset_generate_complement(csc_buffer.len / sizeof(*csc),
                                             csc, &csc2_buffer);
-             tnt_assert_op(size_t, csc2_buffer.len, ==, cs.n * sizeof(*csc2));
-             tnt_assert(memcmp(csc2, cs.ranges, csc2_buffer.len) == 0))));
+             tnt_assert_mem(csc2_buffer.len, csc2,
+                            cs.n * sizeof(*cs.ranges), cs.ranges))));
 }
 
 TESTDEF(test_charset_union_complement, "∀ C : CS, ∁ C ∪ C = U")
@@ -556,8 +550,8 @@ TESTDEF_SINGLE(test_charset_diff_empty, "∀ C : CS, C ∖ ∅ = C")
            PRODUCING
            (tn_charset_range, csd,
             tn_charset_generate_diff(cs.n, cs.ranges, 0, NULL, &csd_buffer);
-            tnt_assert_op(size_t, csd_buffer.len, ==, cs.n * sizeof(*csd));
-            tnt_assert(memcmp(csd, cs.ranges, csd_buffer.len) == 0)));
+            tnt_assert_mem(csd_buffer.len, csd,
+                           cs.n * sizeof(*cs.ranges), cs.ranges)));
 }
 
 TESTDEF_SINGLE(test_charset_full_diff, "∀ C : CS, U ∖ C = ∁ C")
@@ -570,8 +564,7 @@ TESTDEF_SINGLE(test_charset_full_diff, "∀ C : CS, U ∖ C = ∁ C")
              tn_charset_generate_complement(cs.n, cs.ranges, &csc_buffer);
              tn_charset_generate_diff(1, &(tn_charset_range){0, INT32_MAX},
                                       cs.n, cs.ranges, &csd_buffer);
-             tnt_assert_op(size_t, csc_buffer.len, ==, csd_buffer.len);
-             tnt_assert(memcmp(csc, csd, csd_buffer.len) == 0))));
+             tnt_assert_mem(csd_buffer.len, csd, csc_buffer.len, csc))));
 }
 
 
@@ -608,8 +601,7 @@ TESTDEF(test_charset_diff_intersect_compl,
                tn_charset_generate_intersect(cs1.n, cs1.ranges,
                                              csc_buffer.len / sizeof(*csc),
                                              csc, &csi_buffer);
-               tnt_assert_op(size_t, csd_buffer.len, ==, csi_buffer.len);
-               tnt_assert(memcmp(csd, csi, csd_buffer.len) == 0))))));
+               tnt_assert_mem(csd_buffer.len, csd, csi_buffer.len, csi))))));
 }
 
 TESTDEF_SINGLE(test_charset_diff_subset,

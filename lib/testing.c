@@ -15,6 +15,48 @@
 #include <talloc.h>
 #include "testing.h"
 
+void
+tnt_compare_mem(size_t len1, const void *mem1,
+                size_t len2, const void *mem2,
+                const char *msg, int line)
+{
+    size_t i;
+    const uint8_t *bytes1, *bytes2;
+    bool failed = false;
+
+    if (len1 != len2)
+    {
+        tnt_log("Assertion failed: %s: %zu != %zu @ %d",
+                msg, len1, len2, line);
+        _Exit(TNT_EXIT_FAIL);
+    }
+
+    if (len1 != 0)
+    {
+        if (mem1 == NULL || mem2 == NULL)
+        {
+            tnt_log("Assertion failed: %s: NULL pointer @ %d",
+                    msg, line);
+            _Exit(TNT_EXIT_FAIL);
+        }
+    }
+
+    bytes1 = mem1;
+    bytes2 = mem2;
+    for (i = 0; i < len1; i++)
+    {
+        if (bytes1[i] != bytes2[i])
+        {
+            if (!failed)
+                tnt_log("Assertion failed: %s @ %d", msg, line);
+            tnt_log("\t%zu: %02x != %02x", i, bytes1[i], bytes2[i]);
+            failed = true;
+        }
+    }
+    if (failed)
+        _Exit(TNT_EXIT_FAIL);
+}
+
 bool tnt_mark_as_trivial = false;
 
 tnt_test_descr *tnt_test_descr_first = NULL;
@@ -36,7 +78,7 @@ static void
 abort_on_talloc(const char *msg)
 {
     tnt_log("%s", msg);
-    exit(TNT_EXIT_FAIL);
+    _Exit(TNT_EXIT_FAIL);
 }
 
 noreturn static void

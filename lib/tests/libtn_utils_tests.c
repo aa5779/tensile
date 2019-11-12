@@ -64,6 +64,7 @@ static int mem_str_ctx_destroy(TN_UNUSED void *arg)
     return 0;
 }
 
+/*! [TN_BUG_ON] */
 TESTDEF_SINGLE(test_bug_on_ok, "No bug")
 {
     TN_BUG_ON(false);
@@ -73,6 +74,7 @@ TESTDEF_SIG(test_bug_on_abort, "Abort on bug", ABRT)
 {
     TN_BUG_ON(true);
 }
+/*! [TN_BUG_ON] */
 
 TESTDEF(test_random, "Random generator sanity")
 {
