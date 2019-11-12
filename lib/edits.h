@@ -63,6 +63,9 @@ tn_edit_shift_item(const tn_edit_item *item, int delta)
                              item->ch);
 }
 
+/**
+ * @undocumented
+ */
 extern TN_NO_SHARED_STATE bool
 tn_edit_seq_eq(size_t len1,
                const tn_edit_item seq1[TN_VAR_SIZE(len1)],

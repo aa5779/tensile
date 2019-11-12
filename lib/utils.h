@@ -72,31 +72,42 @@ tn_bug_on(bool cond, const char *file, int line, const char *msg)
  * Prints the stringified form of @p _expr and
  * the current source code location.
  * @sa tn_bug_on
+ * @test
+ * @snippet libtn_utils_tests.c TN_BUG_ON
  */
 #define TN_BUG_ON(_expr)                            \
     tn_bug_on(_expr, __FILE__, __LINE__, #_expr)
 
 /**
  * Prints a formatted message related to @p _file:@p _line.
- * @code{tn_log_error} and @code{TN_INTERNAL_ERROR} produce
- * an error message, @code{tn_log_warning} produces a warning,
- * and @code{tn_fatal_error} produces a fatal error and aborts
- * the program. @code{TN_INTERNAL_ERROR} is a wrapper around
- * @code{tn_log_error} that uses the current source code location
+ * `tn_log_error` and `TN_INTERNAL_ERROR` produce
+ * an error message, `tn_log_warning` produces a warning,
+ * and `tn_fatal_error` produces a fatal error and aborts
+ * the program. `TN_INTERNAL_ERROR` is a wrapper around
+ * `tn_log_error` that uses the current source code location
  * as a relevant filename and line.
  */
 #define tn_log_error(_file, _line, _fmt, ...)                           \
     ((void)fprintf(stderr, "error:%s:%d: " _fmt "\n", _file, _line,     \
                    __VA_ARGS__))
 
+/**
+ * @undocumented
+ */
 #define tn_log_warning(_file, _line, _fmt, ...)                         \
     ((void)fprintf(stderr, "warning:%s:%d: " _fmt "\n", _file, _line,   \
                    __VA_ARGS__))
 
+/**
+ * @undocumented
+ */
 #define tn_fatal_error(_file, _line, _fmt, ...)                         \
     ((void)fprintf(stderr, "FATAL:%s:%d: " _fmt "\n", _file, _line,     \
                    __VA_ARGS__), abort())
 
+/**
+ * @undocumented
+ */
 #define TN_INTERNAL_ERROR(_fmt, ...)                    \
     tn_log_error(__FILE__, __LINE__, _fmt, __VA_ARGS__)
 
@@ -322,14 +333,14 @@ tn_cow(tn_ptr_location loc, void (*copier)(tn_ptr_location loc))
 #define TN_REALLOC_FLEX(_loc, _type, _flexfield, _newcnt)           \
     tn_realloc((_loc), TN_FLEX_SIZE(_type, _flexfield, _newcnt))
 
-/** @deftp Struct tn_buffer
+/**
  * @undocumented
  */
 typedef struct tn_buffer {
-    size_t len;
-    size_t bufsize;
-    size_t offset;
-    tn_ptr_location location;
+    size_t len; /**< @undocumented */
+    size_t bufsize; /**< @undocumented */
+    size_t offset; /**< @undocumented */
+    tn_ptr_location location; /**< @undocumented */
 } tn_buffer;
 
 /**

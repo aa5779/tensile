@@ -53,8 +53,8 @@ enum tn_value_type {
  * @undocumented
  */
 typedef struct tn_ref {
-    uint64_t hi;
-    uint64_t lo;
+    uint64_t hi; /**< @undocumented */
+    uint64_t lo; /**< @undocumented */
 } tn_ref;
 
 /**
@@ -79,8 +79,8 @@ enum tn_ref_kind {
  * @undocumented
  */
 typedef struct tn_range {
-    int32_t lo;
-    int32_t hi;
+    int32_t lo; /**< @undocumented */
+    int32_t hi; /**< @undocumented */
 } tn_range;
 
 /**
@@ -92,20 +92,16 @@ typedef struct tn_range {
  * @undocumented
  */
 typedef struct tn_charset_range {
-    ucs4_t lo;
-    ucs4_t hi;
+    ucs4_t lo; /**< @undocumented */
+    ucs4_t hi; /**< @undocumented */
 } tn_charset_range;
-
-/** @defgroup edits Edits
- * @{
- */
 
 /**
  * Edit sequence element
  */
 typedef struct tn_edit_item {
-    size_t pos;
-    ucs4_t ch;
+    size_t pos; /**< @undocumented */
+    ucs4_t ch;  /**< @undocumented */
 } tn_edit_item;
 
 /**

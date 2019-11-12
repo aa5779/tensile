@@ -72,10 +72,13 @@ tn_edit_distance(size_t len1, const uint32_t str1[TN_VAR_SIZE(len1)],
     return prev;
 }
 
+/**
+ * @undocumented
+ */
 typedef struct tn_edit_cell {
-    size_t refcnt;
-    tn_edit_item item;
-    struct tn_edit_cell *chain;
+    size_t refcnt; /**< @undocumented */
+    tn_edit_item item; /**< @undocumented */
+    struct tn_edit_cell *chain; /**< @undocumented */
 } tn_edit_cell;
 
 bool
@@ -167,9 +170,12 @@ tn_unlink_cell(tn_edit_cell **freelist, tn_edit_cell *cell)
         tn_cleanup_cell(freelist, cell);
 }
 
+/**
+ * @undocumented
+ */
 typedef struct tn_edit_cell_ptr {
-    tn_edit_cell *cell;
-    size_t dist;
+    tn_edit_cell *cell; /**< @undocumented */
+    size_t dist; /**< @undocumented */
 } tn_edit_cell_ptr;
 
 void
