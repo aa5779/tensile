@@ -6,4 +6,3 @@ SUBDIRS = lib compiler
 
 MOSTLYCLEANFILES = $(DX_CLEANFILES)
 
-EXTRA_DIST = mktests.m4
